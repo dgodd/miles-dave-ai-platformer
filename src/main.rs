@@ -8,15 +8,23 @@ const MOVE_SPEED: f32 = 280.0;
 const PLAYER_WIDTH: f32 = 28.0;
 const PLAYER_HEIGHT: f32 = 36.0;
 
-/// Drawn sprite size (can be larger than the collision box).
-const SPRITE_WIDTH: f32 = 48.0;
-const SPRITE_HEIGHT: f32 = 48.0;
-
 const COYOTE_FRAMES: i32 = 6;
 const JUMP_BUFFER_FRAMES: i32 = 5;
 
 const SPIKE_HEIGHT: f32 = 24.0;
 const SPIKE_TOOTH_WIDTH: f32 = 20.0;
+
+// ── Dog colours (warm brown pallette inspired by Dog.jpeg) ───────────────────
+
+const FUR: Color = Color::new(0.77, 0.52, 0.23, 1.0);
+const FUR_DARK: Color = Color::new(0.63, 0.41, 0.16, 1.0);
+const FUR_LIGHT: Color = Color::new(0.91, 0.73, 0.40, 1.0);
+const EAR_COLOR: Color = Color::new(0.55, 0.34, 0.12, 1.0);
+const NOSE_COLOR: Color = Color::new(0.15, 0.10, 0.06, 1.0);
+const EYE_WHITE: Color = Color::new(1.0, 1.0, 1.0, 1.0);
+const EYE_PUPIL: Color = Color::new(0.10, 0.07, 0.04, 1.0);
+const COLLAR: Color = Color::new(0.80, 0.20, 0.20, 1.0);
+const TONGUE: Color = Color::new(0.95, 0.40, 0.40, 1.0);
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -30,7 +38,6 @@ struct Player {
     jump_buffer_counter: i32,
     facing_right: bool,
     dead: bool,
-    /// Accumulated time for walk-cycle animation.
     walk_time: f32,
 }
 
@@ -83,7 +90,7 @@ impl Spike {
         let sy = self.pos.y - offset.y;
 
         if sx + self.width < 0.0 || sx > screen_width() {
-            return; // off-screen culling
+            return;
         }
 
         let tooth_count = (self.width / SPIKE_TOOTH_WIDTH).ceil() as usize;
@@ -120,11 +127,10 @@ struct Game {
     player: Player,
     platforms: Vec<Platform>,
     spikes: Vec<Spike>,
-    dog_texture: Texture2D,
 }
 
 impl Game {
-    fn new(dog_texture: Texture2D) -> Self {
+    fn new() -> Self {
         let floor_y = screen_height() - 40.0;
 
         let platforms = vec![
@@ -152,13 +158,11 @@ impl Game {
             player: Player::new(start_x, start_y),
             platforms,
             spikes,
-            dog_texture,
         }
     }
 
-    /// Reset the game world while keeping the loaded texture.
     fn reset(&mut self) {
-        *self = Self::new(self.dog_texture.clone());
+        *self = Self::new();
     }
 
     fn update_player(&mut self, dt: f32) {
@@ -292,9 +296,11 @@ impl Game {
             spike.draw(cam);
         }
 
-        // ── Player (animated dog sprite) ────────────────────────────────
+        // ── Player ──────────────────────────────────────────────────────
         if !self.player.dead {
-            self.draw_dog_sprite(cam);
+            let psx = self.player.pos.x + self.player.size.x / 2.0 - cam.x;
+            let psy = self.player.pos.y + self.player.size.y / 2.0 - cam.y;
+            draw_dog_sprite(psx, psy, &self.player);
         }
 
         // ── HUD ─────────────────────────────────────────────────────────
@@ -318,62 +324,160 @@ impl Game {
                       22.0, Color::from_hex(0xaaaaaa));
         }
     }
+}
 
-    /// Draw the dog with walk-cycle bobbing and jump squash/stretch.
-    fn draw_dog_sprite(&self, cam: Vec2) {
-        let p = &self.player;
+// ── Dog sprite drawing ───────────────────────────────────────────────────────
 
-        // Centre the sprite on the collision box
-        let draw_x = p.pos.x + (p.size.x - SPRITE_WIDTH) / 2.0 - cam.x;
-        let draw_y = p.pos.y + (p.size.y - SPRITE_HEIGHT) / 2.0 - cam.y;
+/// Draw the player as an animated dog character inspired by Dog.jpeg.
+///
+/// All coordinates are local offsets from the sprite centre `(cx, cy)`.
+/// When `facing_right` is false the x-axis is mirrored so the dog turns.
+fn draw_dog_sprite(cx: f32, cy: f32, p: &Player) {
+    let flip = if p.facing_right { 1.0 } else { -1.0 };
+    let t = p.walk_time;
 
-        // ── Compute animation transforms ────────────────────────────────
-        let (scale_x, scale_y, offset_y);
+    // ── Compute animation parameters ────────────────────────────────────
+    let (leg_phase, body_bob_x, body_bob_y, tail_angle, ear_tilt, tongue_out);
 
-        if p.grounded {
-            if p.vel.x != 0.0 {
-                // Walking: vertical bob with gentle squish/stretch
-                let cycle = (p.walk_time * 10.0).sin();
-                // Bob up/down by 2px
-                offset_y = cycle * 2.0;
-                // Subtle squash/stretch (0.92 – 1.08)
-                scale_x = 1.0 + cycle * 0.06;
-                scale_y = 1.0 - cycle * 0.06;
-            } else {
-                // Idle: very subtle breathing
-                let breath = (p.walk_time * 3.0).sin() * 0.02;
-                offset_y = 0.0;
-                scale_x = 1.0 + breath;
-                scale_y = 1.0 - breath;
-            }
+    if p.grounded {
+        if p.vel.x != 0.0 {
+            // Walking
+            leg_phase = t * 8.0;
+            body_bob_x = (t * 10.0).sin() * 0.6;
+            body_bob_y = (t * 10.0).sin() * 1.2;
+            tail_angle = (t * 12.0).sin() * 0.6;
+            ear_tilt = (t * 8.0).sin() * 0.06;
+            tongue_out = true;
         } else {
-            // In air: stretch vertically, squish horizontally
-            let t = (p.vel.y / 800.0).clamp(-0.15, 0.15);
-            offset_y = 0.0;
-            scale_x = 1.0 + t;   // widen when falling fast
-            scale_y = 1.0 - t;   // lengthen when falling fast
+            // Idle — subtle breathing, tail wag
+            leg_phase = 0.0;
+            body_bob_x = 0.0;
+            body_bob_y = (t * 2.5).sin() * 0.4;
+            tail_angle = (t * 3.0).sin() * 0.3;
+            ear_tilt = 0.0;
+            tongue_out = (t * 2.0).sin() > 0.3;
         }
+    } else {
+        // Airborne — legs tuck, ears back
+        leg_phase = std::f32::consts::PI; // legs tucked
+        body_bob_x = 0.0;
+        body_bob_y = 0.0;
+        tail_angle = -0.8; // tail straight back
+        ear_tilt = -0.15;  // ears blown back
+        tongue_out = true;
+    }
 
-        // ── Flip based on facing direction ──────────────────────────────
-        let flip = if p.facing_right { 1.0 } else { -1.0 };
+    // Helper to apply horizontal flip around the centre
+    let lx = |local_x: f32| cx + local_x * flip;
+    // Absolute position from local offset
+    let ptx = |local_x: f32, local_y: f32| (lx(local_x), cy + local_y);
 
-        // ── Draw the dog ────────────────────────────────────────────────
-        let half_w = SPRITE_WIDTH / 2.0;
-        let half_h = SPRITE_HEIGHT / 2.0;
-        let cx = draw_x + half_w;
-        let cy = draw_y + half_h + offset_y;
+    // ── Body ────────────────────────────────────────────────────────────
+    let body_cx = body_bob_x;
+    let body_cy = 1.0 + body_bob_y;
+    let (bx, by) = ptx(body_cx, body_cy);
 
-        draw_texture_ex(
-            &self.dog_texture,
-            cx - half_w * scale_x,
-            cy - half_h * scale_y,
-            WHITE,
-            DrawTextureParams {
-                dest_size: Some(vec2(SPRITE_WIDTH * scale_x, SPRITE_HEIGHT * scale_y)),
-                flip_x: flip < 0.0,
-                ..Default::default()
-            },
-        );
+    // Main body — slightly rounded rectangle
+    draw_rectangle(bx - 12.0, by - 6.0, 24.0, 14.0, FUR);
+    // Belly highlight
+    draw_rectangle(bx - 9.0, by - 2.0, 18.0, 8.0, FUR_LIGHT);
+
+    // ── Back legs ───────────────────────────────────────────────────────
+    let bl_swing = (leg_phase + 0.5).sin() * 4.0;
+    let bl_off = if p.grounded && p.vel.x != 0.0 { bl_swing } else { 0.0 };
+    draw_back_leg(bx - 7.0 + bl_off * 0.3, by + 7.0, p.grounded);
+
+    // ── Tail ────────────────────────────────────────────────────────────
+    let tail_base_x = bx - 12.0;
+    let tail_base_y = by - 3.0;
+    let tip_x = tail_base_x + (tail_angle * 0.8 - 0.8).cos() * 8.0;
+    let tip_y = tail_base_y + (tail_angle * 0.8 - 0.8).sin() * 8.0 - 6.0;
+    draw_line(lx(tail_base_x), tail_base_y, lx(tip_x), tip_y, 4.0, FUR);
+    // Tail tip (fluff)
+    draw_circle(lx(tip_x), tip_y, 3.0, FUR_LIGHT);
+
+    // ── Front legs ──────────────────────────────────────────────────────
+    let fl_swing = (leg_phase).sin() * 4.0;
+    let fl_off = if p.grounded && p.vel.x != 0.0 { fl_swing } else { 0.0 };
+    draw_front_leg(bx + 7.0 + fl_off * 0.3, by + 7.0, p.grounded);
+
+    // ── Head ────────────────────────────────────────────────────────────
+    let head_x = bx + 11.0;
+    let head_y = by - 4.0;
+    let (hx, hy) = ptx(head_x, head_y);
+
+    // Ears (behind head)
+    let ear_angle = std::f32::consts::FRAC_PI_4 + ear_tilt;
+    // Back ear
+    draw_triangle(
+        vec2(lx(head_x + 4.0), hy - 5.0),
+        vec2(lx(head_x + 4.0 + ear_angle.cos() * 7.0), hy - 5.0 + ear_angle.sin().abs() * 6.0),
+        vec2(lx(head_x + 8.0), hy - 2.0),
+        EAR_COLOR,
+    );
+    // Front ear
+    draw_triangle(
+        vec2(lx(head_x - 2.0), hy - 5.0),
+        vec2(lx(head_x - 2.0 - ear_angle.cos() * 7.0), hy - 5.0 + ear_angle.sin().abs() * 6.0),
+        vec2(lx(head_x + 2.0), hy - 2.0),
+        EAR_COLOR,
+    );
+
+    // Head circle
+    draw_circle(hx, hy, 7.0, FUR);
+    // Snout
+    draw_circle(hx + 3.0, hy + 2.0, 4.0, FUR_LIGHT);
+
+    // Eyes
+    draw_circle(hx + 1.0, hy - 1.0, 2.5, EYE_WHITE);
+    draw_circle(hx + 4.0, hy - 1.0, 2.5, EYE_WHITE);
+    // Pupils (look in the direction of movement)
+    let pupil_off = if p.facing_right { 0.8 } else { -0.8 };
+    draw_circle(hx + 1.0 + pupil_off, hy - 1.0, 1.3, EYE_PUPIL);
+    draw_circle(hx + 4.0 + pupil_off, hy - 1.0, 1.3, EYE_PUPIL);
+    // Eye shine
+    draw_circle(hx + 1.5 + pupil_off * 0.5, hy - 1.8, 0.6, WHITE);
+    draw_circle(hx + 4.5 + pupil_off * 0.5, hy - 1.8, 0.6, WHITE);
+
+    // Nose
+    draw_circle(hx + 6.0, hy + 2.5, 1.8, NOSE_COLOR);
+
+    // Mouth
+    if tongue_out {
+        draw_rectangle(hx + 3.5, hy + 4.0, 2.5, 3.5, TONGUE);
+        draw_circle(hx + 4.75, hy + 4.0, 1.5, TONGUE);
+    } else {
+        draw_line(hx + 2.0, hy + 4.0, hx + 6.0, hy + 4.0, 1.0, FUR_DARK);
+    }
+
+    // ── Collar ──────────────────────────────────────────────────────────
+    draw_line(lx(head_x - 3.0), hy + 5.0, lx(head_x + 5.0), hy + 6.0, 2.5, COLLAR);
+    // Collar tag (shiny gold)
+    draw_circle(lx(head_x + 1.0), hy + 7.0, 2.0, Color::from_hex(0xffd700));
+    draw_circle(lx(head_x + 0.6), hy + 6.6, 0.6, Color::from_hex(0xfff8dc));
+}
+
+/// Draw a front leg at the given world position.
+fn draw_front_leg(x: f32, y: f32, grounded: bool) {
+    if grounded {
+        draw_rectangle(x - 2.0, y, 4.0, 6.0, FUR);
+        draw_rectangle(x - 3.0, y + 5.0, 6.0, 2.5, FUR_DARK); // paw
+    } else {
+        // Tucked leg during jump
+        draw_rectangle(x - 1.5, y - 1.0, 3.0, 4.0, FUR);
+        draw_circle(x, y + 4.0, 2.5, FUR_DARK);
+    }
+}
+
+/// Draw a back leg at the given world position.
+fn draw_back_leg(x: f32, y: f32, grounded: bool) {
+    if grounded {
+        draw_rectangle(x - 2.0, y, 4.0, 6.0, FUR_DARK);
+        draw_rectangle(x - 3.0, y + 5.0, 6.0, 2.5, FUR_DARK); // paw
+    } else {
+        // Tucked leg during jump
+        draw_rectangle(x - 1.5, y - 1.0, 3.0, 4.0, FUR_DARK);
+        draw_circle(x, y + 4.0, 2.5, FUR_DARK);
     }
 }
 
@@ -381,10 +485,7 @@ impl Game {
 
 #[macroquad::main("Platformer")]
 async fn main() {
-    let dog_texture = load_texture("assets/Dog.png").await.unwrap();
-    dog_texture.set_filter(FilterMode::Nearest);
-
-    let mut game = Game::new(dog_texture);
+    let mut game = Game::new();
 
     loop {
         let dt = get_frame_time().min(0.05);
