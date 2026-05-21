@@ -223,7 +223,7 @@ impl Game {
         // Babies patrol across various platforms
         let babies = vec![
             Baby::new(550.0, floor_y, 450.0),
-            Baby::new(490.0, screen_height() - 130.0, 100.0),
+            Baby::new(290.0, screen_height() - 130.0, 80.0),
             Baby::new(490.0, screen_height() - 240.0, 100.0),
             Baby::new(250.0, floor_y, 120.0),
             Baby::new(700.0, floor_y, 100.0),
