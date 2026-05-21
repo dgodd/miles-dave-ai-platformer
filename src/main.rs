@@ -146,6 +146,15 @@ impl Poop {
     }
 }
 
+/// A single death particle.
+#[derive(Debug, Clone, PartialEq)]
+struct Particle {
+    pos: Vec2,
+    vel: Vec2,
+    lifetime: f32,
+    size: f32,
+}
+
 /// A crawling baby enemy that patrols back and forth on a platform.
 #[derive(Debug, Clone, PartialEq)]
 struct Baby {
@@ -212,6 +221,7 @@ struct Game {
     spikes: Vec<Spike>,
     babies: Vec<Baby>,
     poops: Vec<Poop>,
+    particles: Vec<Particle>,
 }
 
 impl Game {
@@ -255,11 +265,29 @@ impl Game {
             spikes,
             babies,
             poops: vec![],
+            particles: vec![],
         }
     }
 
     fn reset(&mut self) {
         *self = Self::new();
+    }
+
+    fn die(&mut self) {
+        self.player.dead = true;
+        let px = self.player.pos.x + self.player.size.x / 2.0;
+        let py = self.player.pos.y + self.player.size.y / 2.0;
+        for _ in 0..30 {
+            let angle = (mq_rand::rand() as f32 / u32::MAX as f32) * std::f32::consts::TAU;
+            let speed = (mq_rand::rand() as f32 / u32::MAX as f32) * 250.0 + 80.0;
+            let size = (mq_rand::rand() as f32 / u32::MAX as f32) * 5.0 + 3.0;
+            self.particles.push(Particle {
+                pos: vec2(px, py),
+                vel: vec2(angle.cos() * speed, angle.sin() * speed),
+                lifetime: (mq_rand::rand() as f32 / u32::MAX as f32) * 0.6 + 0.3,
+                size,
+            });
+        }
     }
 
     fn update_player(&mut self, dt: f32) {
@@ -348,7 +376,7 @@ impl Game {
         // ── Spike collisions ────────────────────────────────────────────
         for spike in &self.spikes {
             if self.player.rect().intersect(spike.rect()).is_some() {
-                self.player.dead = true;
+                self.die();
                 break;
             }
         }
@@ -357,7 +385,7 @@ impl Game {
         if !self.player.dead {
             for baby in &self.babies {
                 if self.player.rect().intersect(baby.rect()).is_some() {
-                    self.player.dead = true;
+                    self.die();
                     break;
                 }
             }
@@ -417,6 +445,15 @@ impl Game {
             let psx = self.player.pos.x + self.player.size.x / 2.0 - cam.x;
             let psy = self.player.pos.y + self.player.size.y / 2.0 - cam.y;
             draw_dog_sprite(psx, psy, &self.player);
+        }
+
+        // ── Particles ──────────────────────────────────────────────────
+        for p in &self.particles {
+            let sx = p.pos.x - cam.x;
+            let sy = p.pos.y - cam.y;
+            let alpha = (p.lifetime / 0.9).clamp(0.0, 1.0);
+            let color = Color::new(0.9, 0.1, 0.1, alpha);
+            draw_rectangle(sx - p.size / 2.0, sy - p.size / 2.0, p.size, p.size, color);
         }
 
         // ── HUD ─────────────────────────────────────────────────────────
@@ -771,6 +808,17 @@ async fn main() {
         if is_key_pressed(KeyCode::R) {
             game.reset();
         }
+
+        // ── Update particles (always, even during death screen) ─────────
+        game.particles.retain_mut(|p| {
+            p.lifetime -= dt;
+            if p.lifetime <= 0.0 {
+                return false;
+            }
+            p.vel.y += GRAVITY * 1.5 * dt;
+            p.pos += p.vel * dt;
+            true
+        });
 
         // ── Draw ────────────────────────────────────────────────────────
         game.draw();
