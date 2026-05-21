@@ -26,6 +26,9 @@ const EYE_PUPIL: Color = Color::new(0.10, 0.07, 0.04, 1.0);
 const COLLAR: Color = Color::new(0.80, 0.20, 0.20, 1.0);
 const TONGUE: Color = Color::new(0.95, 0.40, 0.40, 1.0);
 
+/// Overall scale factor for the dog sprite.
+const DOG_SCALE: f32 = 1.3;
+
 // ── Types ────────────────────────────────────────────────────────────────────
 
 #[derive(Debug, Clone, PartialEq)]
@@ -333,6 +336,7 @@ impl Game {
 fn draw_dog_sprite(cx: f32, cy: f32, p: &Player) {
     let flip = if p.facing_right { 1.0 } else { -1.0 };
     let t = p.walk_time;
+    let s = DOG_SCALE;
 
     // ── Compute animation parameters ────────────────────────────────────
     let (leg_phase, body_bob_x, body_bob_y, tail_angle, ear_tilt, tongue_out);
@@ -341,8 +345,8 @@ fn draw_dog_sprite(cx: f32, cy: f32, p: &Player) {
         if p.vel.x != 0.0 {
             // Walking
             leg_phase = t * 8.0;
-            body_bob_x = (t * 10.0).sin() * 0.6;
-            body_bob_y = (t * 10.0).sin() * 1.2;
+            body_bob_x = (t * 10.0).sin() * 0.6 * s;
+            body_bob_y = (t * 10.0).sin() * 1.2 * s;
             tail_angle = (t * 12.0).sin() * 0.6;
             ear_tilt = (t * 8.0).sin() * 0.06;
             tongue_out = true;
@@ -350,152 +354,144 @@ fn draw_dog_sprite(cx: f32, cy: f32, p: &Player) {
             // Idle — subtle breathing, tail wag
             leg_phase = 0.0;
             body_bob_x = 0.0;
-            body_bob_y = (t * 2.5).sin() * 0.4;
+            body_bob_y = (t * 2.5).sin() * 0.4 * s;
             tail_angle = (t * 3.0).sin() * 0.3;
             ear_tilt = 0.0;
             tongue_out = (t * 2.0).sin() > 0.3;
         }
     } else {
         // Airborne — legs tuck, ears back
-        leg_phase = std::f32::consts::PI; // legs tucked
+        leg_phase = std::f32::consts::PI;
         body_bob_x = 0.0;
         body_bob_y = 0.0;
-        tail_angle = -0.8; // tail straight back
-        ear_tilt = -0.15;  // ears blown back
+        tail_angle = -0.8;
+        ear_tilt = -0.15;
         tongue_out = true;
     }
 
     // ── Body centre (absolute screen coordinates) ──────────────────────
     let bx = cx + body_bob_x * flip;
-    let by = cy + 1.0 + body_bob_y;
+    let by = cy + 1.0 * s + body_bob_y;
 
-    // Local-offset helper: converts a body-relative x offset into an
-    // absolute screen x, correctly mirroring when the dog faces left.
-    let ox = |dx: f32| bx + dx * flip;
+    // Local-offset helper — scales positions by s for a bigger dog
+    let ox = |dx: f32| bx + dx * flip * s;
 
     // ── Body (overlapping circles for a smooth organic shape) ───────────
     //
     //  Rump circle  ->  Body rect  ->  Shoulder circle  ->  Head circle
     //   (dog's back)                                   (dog's front)
     //
-    // Core body rectangle (symmetric around bx, so no flip needed)
-    draw_rectangle(bx - 10.0, by - 6.0, 20.0, 14.0, FUR);
+    let hbw = 10.0 * s;      // body half-width
+    let hbh = 6.0 * s;       // body half-height
+    draw_rectangle(bx - hbw, by - hbh, hbw * 2.0, hbh * 2.0, FUR);
 
     // Rump — at the back of the dog
-    draw_circle(ox(-9.0), by - 1.0, 7.0, FUR);
+    draw_circle(ox(-9.0), by - 1.0 * s, 7.0 * s, FUR);
 
     // Shoulder — at the front of the dog
-    draw_circle(ox(9.0), by - 2.0, 8.0, FUR);
+    draw_circle(ox(9.0), by - 2.0 * s, 8.0 * s, FUR);
 
     // Belly highlight (symmetric)
-    draw_rectangle(bx - 8.0, by - 1.0, 16.0, 6.0, FUR_LIGHT);
-    draw_circle(bx - 6.0, by + 2.0, 3.0, FUR_LIGHT);
-    draw_circle(bx + 6.0, by + 2.0, 3.0, FUR_LIGHT);
+    draw_rectangle(bx - 8.0 * s, by - 1.0 * s, 16.0 * s, 6.0 * s, FUR_LIGHT);
+    draw_circle(bx - 6.0 * s, by + 2.0 * s, 3.0 * s, FUR_LIGHT);
+    draw_circle(bx + 6.0 * s, by + 2.0 * s, 3.0 * s, FUR_LIGHT);
 
     // ── Tail ────────────────────────────────────────────────────────────
-    let tail_anchor_x = -15.0; // local offset from body centre
-    let tail_anchor_y = by - 3.0;
+    let tail_anchor_x = -15.0 * s;
+    let tail_anchor_y = by - 3.0 * s;
     let tail_dir = tail_angle * 0.7 - 0.6;
-    let tip_local_x = tail_anchor_x + tail_dir.cos() * 10.0;
-    let tip_y = tail_anchor_y + tail_dir.sin() * 10.0 - 6.0;
-    draw_line(ox(tail_anchor_x), tail_anchor_y, ox(tip_local_x), tip_y, 5.0, FUR);
-    // Fluffy tail tip
-    draw_circle(ox(tip_local_x), tip_y, 4.0, FUR_LIGHT);
-    draw_circle(ox(tip_local_x - 1.0), tip_y - 1.0, 2.5, FUR_LIGHT);
+    let tip_local_x = tail_anchor_x + tail_dir.cos() * 10.0 * s;
+    let tip_y = tail_anchor_y + tail_dir.sin() * 10.0 * s - 6.0 * s;
+    draw_line(ox(tail_anchor_x / s), tail_anchor_y, ox(tip_local_x / s), tip_y, 5.0 * s, FUR);
+    draw_circle(ox(tip_local_x / s), tip_y, 4.0 * s, FUR_LIGHT);
+    draw_circle(ox((tip_local_x - 1.0 * s) / s), tip_y - 1.0 * s, 2.5 * s, FUR_LIGHT);
 
     // ── Back legs ───────────────────────────────────────────────────────
-    let bl_swing = (leg_phase + 0.5).sin() * 4.0;
+    let bl_swing = (leg_phase + 0.5).sin() * 4.0 * s;
     let bl_off = if p.grounded && p.vel.x != 0.0 { bl_swing } else { 0.0 };
-    draw_back_leg(ox(-6.0 + bl_off * 0.3), by + 7.0, p.grounded);
+    draw_back_leg(ox(-6.0 + bl_off / s * 0.3), by + 7.0 * s, p.grounded, s);
 
     // ── Front legs ──────────────────────────────────────────────────────
-    let fl_swing = (leg_phase).sin() * 4.0;
+    let fl_swing = (leg_phase).sin() * 4.0 * s;
     let fl_off = if p.grounded && p.vel.x != 0.0 { fl_swing } else { 0.0 };
-    draw_front_leg(ox(6.5 + fl_off * 0.3), by + 7.0, p.grounded);
+    draw_front_leg(ox(6.5 + fl_off / s * 0.3), by + 7.0 * s, p.grounded, s);
 
     // ── Head ────────────────────────────────────────────────────────────
-    let head_dx = 16.0; // local offset from body centre
-    let head_dy = -4.0;
-    let hx = ox(head_dx);
+    let head_dx = 16.0 * s;
+    let head_dy = -4.0 * s;
+    let hx = ox(head_dx / s);
     let hy = by + head_dy;
 
     // Helper for positions relative to the head
-    let hx_off = |dx: f32| hx + dx * flip;
+    let hx_off = |dx: f32| hx + dx * flip * s;
 
     // Ears (behind head, attached to top of head circle)
     let ear_angle = std::f32::consts::FRAC_PI_4 + ear_tilt;
     let ear_dir = ear_angle.cos();
-    let ear_drop = (ear_angle.sin().abs() + 0.2) * 7.0;
-    // Back ear
+    let ear_drop = (ear_angle.sin().abs() + 0.2) * 7.0 * s;
     draw_triangle(
-        vec2(hx_off(3.0), hy - 6.0),
-        vec2(hx_off(3.0 + ear_dir * 8.0), hy - 6.0 + ear_drop),
-        vec2(hx_off(8.0), hy - 2.0),
+        vec2(hx_off(3.0), hy - 6.0 * s),
+        vec2(hx_off(3.0 + ear_dir * 8.0), hy - 6.0 * s + ear_drop),
+        vec2(hx_off(8.0), hy - 2.0 * s),
         EAR_COLOR,
     );
-    // Front ear
     draw_triangle(
-        vec2(hx_off(-2.0), hy - 6.0),
-        vec2(hx_off(-2.0 - ear_dir * 8.0), hy - 6.0 + ear_drop),
-        vec2(hx_off(2.0), hy - 2.0),
+        vec2(hx_off(-2.0), hy - 6.0 * s),
+        vec2(hx_off(-2.0 - ear_dir * 8.0), hy - 6.0 * s + ear_drop),
+        vec2(hx_off(2.0), hy - 2.0 * s),
         EAR_COLOR,
     );
 
-    // Head circle (radius 8, overlaps shoulder nicely)
-    draw_circle(hx, hy, 8.0, FUR);
-    // Jaw / snout fill
-    draw_circle(hx_off(5.0), hy + 2.0, 5.0, FUR);
-    draw_circle(hx_off(6.0), hy + 2.0, 3.5, FUR_LIGHT);
+    // Head circle
+    draw_circle(hx, hy, 8.0 * s, FUR);
+    draw_circle(hx_off(5.0), hy + 2.0 * s, 5.0 * s, FUR);
+    draw_circle(hx_off(6.0), hy + 2.0 * s, 3.5 * s, FUR_LIGHT);
 
     // Eyes (on the front half of the head)
-    draw_circle(hx_off(2.0), hy - 1.5, 3.0, EYE_WHITE);
-    draw_circle(hx_off(5.5), hy - 1.5, 3.0, EYE_WHITE);
-    let p_off = if p.facing_right { 1.0 } else { -1.0 };
-    draw_circle(hx_off(2.0 + p_off), hy - 1.5, 1.5, EYE_PUPIL);
-    draw_circle(hx_off(5.5 + p_off), hy - 1.5, 1.5, EYE_PUPIL);
-    draw_circle(hx_off(2.5 + p_off * 0.5), hy - 2.5, 0.7, WHITE);
-    draw_circle(hx_off(6.0 + p_off * 0.5), hy - 2.5, 0.7, WHITE);
+    draw_circle(hx_off(2.0), hy - 1.5 * s, 3.0 * s, EYE_WHITE);
+    draw_circle(hx_off(5.5), hy - 1.5 * s, 3.0 * s, EYE_WHITE);
+    let p_off = if p.facing_right { s } else { -s };
+    draw_circle(hx_off(2.0 + p_off / s), hy - 1.5 * s, 1.5 * s, EYE_PUPIL);
+    draw_circle(hx_off(5.5 + p_off / s), hy - 1.5 * s, 1.5 * s, EYE_PUPIL);
+    draw_circle(hx_off(2.5 + p_off * 0.5 / s), hy - 2.5 * s, 0.7 * s, WHITE);
+    draw_circle(hx_off(6.0 + p_off * 0.5 / s), hy - 2.5 * s, 0.7 * s, WHITE);
 
     // Nose
-    draw_circle(hx_off(8.0), hy + 3.0, 2.0, NOSE_COLOR);
-    draw_circle(hx_off(7.8), hy + 2.5, 0.5, Color::from_hex(0x3a2510));
+    draw_circle(hx_off(8.0), hy + 3.0 * s, 2.0 * s, NOSE_COLOR);
+    draw_circle(hx_off(7.8), hy + 2.5 * s, 0.5 * s, Color::from_hex(0x3a2510));
 
     // Mouth
-    draw_line(hx_off(3.0), hy + 5.0, hx_off(7.5), hy + 5.0, 1.5, FUR_DARK);
+    draw_line(hx_off(3.0), hy + 5.0 * s, hx_off(7.5), hy + 5.0 * s, 1.5 * s, FUR_DARK);
     if tongue_out {
-        draw_rectangle(hx_off(4.5), hy + 5.0, 2.5 * flip.abs(), 4.0, TONGUE);
-        draw_circle(hx_off(5.75), hy + 5.0, 1.5, TONGUE);
+        draw_rectangle(hx_off(4.5), hy + 5.0 * s, 2.5 * s, 4.0 * s, TONGUE);
+        draw_circle(hx_off(5.75), hy + 5.0 * s, 1.5 * s, TONGUE);
     }
 
     // ── Collar ──────────────────────────────────────────────────────────
-    // Diagonal from shoulder to neck
-    draw_line(ox(8.0), by - 7.0, ox(15.0), hy + 5.0, 3.0, COLLAR);
-    // Gold tag
-    draw_circle(ox(12.0), by - 3.0, 2.5, Color::from_hex(0xffd700));
-    draw_circle(ox(11.5), by - 3.5, 0.8, Color::from_hex(0xfff8dc));
+    draw_line(ox(8.0), by - 7.0 * s, ox(15.0), hy + 5.0 * s, 3.0 * s, COLLAR);
+    draw_circle(ox(12.0), by - 3.0 * s, 2.5 * s, Color::from_hex(0xffd700));
+    draw_circle(ox(11.5), by - 3.5 * s, 0.8 * s, Color::from_hex(0xfff8dc));
 }
 
 /// Draw a front leg at the given world position.
-fn draw_front_leg(x: f32, y: f32, grounded: bool) {
+fn draw_front_leg(x: f32, y: f32, grounded: bool, s: f32) {
     if grounded {
-        draw_rectangle(x - 2.0, y, 4.0, 6.0, FUR);
-        draw_rectangle(x - 3.0, y + 5.0, 6.0, 2.5, FUR_DARK); // paw
+        draw_rectangle(x - 2.0 * s, y, 4.0 * s, 6.0 * s, FUR);
+        draw_rectangle(x - 3.0 * s, y + 5.0 * s, 6.0 * s, 2.5 * s, FUR_DARK);
     } else {
-        // Tucked leg during jump
-        draw_rectangle(x - 1.5, y - 1.0, 3.0, 4.0, FUR);
-        draw_circle(x, y + 4.0, 2.5, FUR_DARK);
+        draw_rectangle(x - 1.5 * s, y - 1.0 * s, 3.0 * s, 4.0 * s, FUR);
+        draw_circle(x, y + 4.0 * s, 2.5 * s, FUR_DARK);
     }
 }
 
 /// Draw a back leg at the given world position.
-fn draw_back_leg(x: f32, y: f32, grounded: bool) {
+fn draw_back_leg(x: f32, y: f32, grounded: bool, s: f32) {
     if grounded {
-        draw_rectangle(x - 2.0, y, 4.0, 6.0, FUR_DARK);
-        draw_rectangle(x - 3.0, y + 5.0, 6.0, 2.5, FUR_DARK); // paw
+        draw_rectangle(x - 2.0 * s, y, 4.0 * s, 6.0 * s, FUR_DARK);
+        draw_rectangle(x - 3.0 * s, y + 5.0 * s, 6.0 * s, 2.5 * s, FUR_DARK);
     } else {
-        // Tucked leg during jump
-        draw_rectangle(x - 1.5, y - 1.0, 3.0, 4.0, FUR_DARK);
-        draw_circle(x, y + 4.0, 2.5, FUR_DARK);
+        draw_rectangle(x - 1.5 * s, y - 1.0 * s, 3.0 * s, 4.0 * s, FUR_DARK);
+        draw_circle(x, y + 4.0 * s, 2.5 * s, FUR_DARK);
     }
 }
 
