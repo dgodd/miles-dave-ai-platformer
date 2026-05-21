@@ -852,10 +852,67 @@ fn plat_end_x(x: f32, platforms: &[Platform], floor_y: f32) -> f32 {
     x + 200.0
 }
 
+
+/// Generate a solid RGBA pixel buffer of the given size filled with
+/// a golden paw-print pattern. Returns a Vec<u8> of (w * h * 4) bytes.
+fn make_icon_pixels(w: usize, h: usize) -> Vec<u8> {
+    let mut px = vec![0u8; w * h * 4];
+    // Draw a simple paw print: '0' = filled pixel, '.' = transparent
+    let paw = [
+        "...000...00.....",
+        "..0...0.0.0....",
+        ".0.....0...0...",
+        ".0.....00..0...",
+        ".0.....0...0...",
+        "..0...0.0.0....",
+        "...000...00.....",
+        ".........00.....",
+        ".........00.....",
+        ".......00000....",
+        ".......0...0...",
+        ".......0...0...",
+        "......000.000..",
+        ".....00.....00.",
+        "....00.......00",
+        "...00.........0",
+    ];
+    for y in 0..h.min(16) {
+        for x in 0..w.min(16) {
+            if y < paw.len() && x < paw[y].len() && paw[y].as_bytes()[x] == b'0' {
+                let i = (y * w + x) * 4;
+                px[i] = 196;
+                px[i+1] = 150;
+                px[i+2] = 60;
+                px[i+3] = 255;
+            }
+        }
+    }
+    px
+}
+
+fn window_conf() -> Conf {
+    fn to_arr<const N: usize>(v: &[u8]) -> [u8; N] {
+        let mut arr = [0u8; N];
+        let len = v.len().min(N);
+        arr[..len].copy_from_slice(&v[..len]);
+        arr
+    }
+    Conf {
+        window_title: String::from("Dog Adventure"),
+        icon: Some(miniquad::conf::Icon {
+            small: to_arr(&make_icon_pixels(16, 16)),
+            medium: to_arr(&make_icon_pixels(32, 32)),
+            big: to_arr(&make_icon_pixels(64, 64)),
+        }),
+        ..Default::default()
+    }
+}
+
 // ── Entry point ──────────────────────────────────────────────────────────────
 
-#[macroquad::main("Dog Adventure")]
+#[macroquad::main(window_conf)]
 async fn main() {
+
     let mut game = Game::new();
 
     loop {
