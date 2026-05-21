@@ -25,6 +25,24 @@ cargo run
 
 Requires Rust. Built with `macroquad`.
 
+## Release builds
+
+After every commit a `post-commit` hook automatically compiles an
+optimised binary and drops it into `release/`. To enable it:
+
+```sh
+git config core.hooksPath hooks
+```
+
+On macOS the native binary is produced automatically. Windows
+cross-compilation requires the mingw target:
+
+```sh
+rustup target add x86_64-pc-windows-gnu
+# macOS users also need:
+# brew install mingw-w64
+```
+
 ## The experiment
 
 We started with a blank directory and one instruction: *"create the start of a platformer game using rust."* From there, everything — the physics, the level design, the dog character, the spike pits, the baby enemies, the death messages — came from telling the AI what we wanted next. We never wrote a single line of code ourselves.
