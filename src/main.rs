@@ -16,6 +16,9 @@ const COYOTE_FRAMES: i32 = 6;
 /// before landing still triggers an immediate jump.
 const JUMP_BUFFER_FRAMES: i32 = 5;
 
+const SPIKE_HEIGHT: f32 = 24.0;
+const SPIKE_TOOTH_WIDTH: f32 = 20.0;
+
 // ── Types ────────────────────────────────────────────────────────────────────
 
 #[derive(Debug, Clone, PartialEq)]
@@ -27,6 +30,7 @@ struct Player {
     coyote_counter: i32,
     jump_buffer_counter: i32,
     facing_right: bool,
+    dead: bool,
 }
 
 impl Player {
@@ -39,6 +43,7 @@ impl Player {
             coyote_counter: 0,
             jump_buffer_counter: 0,
             facing_right: true,
+            dead: false,
         }
     }
 
@@ -59,19 +64,70 @@ impl Platform {
     }
 }
 
+/// A spike pit that kills the player on contact.
+#[derive(Debug, Clone, PartialEq)]
+struct Spike {
+    pos: Vec2,
+    width: f32,
+    height: f32,
+}
+
+impl Spike {
+    fn rect(&self) -> Rect {
+        Rect::new(self.pos.x, self.pos.y, self.width, self.height)
+    }
+
+    /// Draw the spike pit as a row of triangular teeth.
+    fn draw(&self, offset: Vec2) {
+        let sx = self.pos.x - offset.x;
+        let sy = self.pos.y - offset.y;
+
+        let tooth_count = (self.width / SPIKE_TOOTH_WIDTH).ceil() as usize;
+        let spacing = self.width / tooth_count as f32;
+
+        // Pit background
+        draw_rectangle(sx, sy, self.width, self.height, Color::from_hex(0x0d0d1a));
+
+        for i in 0..tooth_count {
+            let cx = sx + i as f32 * spacing + spacing / 2.0;
+            let left = cx - spacing / 2.0;
+            let right = cx + spacing / 2.0;
+            let bottom = sy + self.height;
+            let tip_y = sy + 2.0; // point up
+
+            // Outline
+            draw_triangle(
+                vec2(left, bottom),
+                vec2(right, bottom),
+                vec2(cx, tip_y),
+                Color::from_hex(0x8b0000),
+            );
+            // Inner highlight
+            draw_triangle(
+                vec2(left + 2.0, bottom - 1.0),
+                vec2(right - 2.0, bottom - 1.0),
+                vec2(cx, tip_y + 3.0),
+                Color::from_hex(0xcc0000),
+            );
+        }
+    }
+}
+
 // ── Game state ───────────────────────────────────────────────────────────────
 
 struct Game {
     player: Player,
     platforms: Vec<Platform>,
+    spikes: Vec<Spike>,
 }
 
 impl Game {
     fn new() -> Self {
-        // Build a little tutorial-style level
+        let floor_y = screen_height() - 40.0;
+
         let platforms = vec![
             // Ground
-            Platform { pos: vec2(0.0, screen_height() - 40.0), size: vec2(800.0, 40.0) },
+            Platform { pos: vec2(0.0, floor_y), size: vec2(800.0, 40.0) },
             // Floating platforms going up and to the right
             Platform { pos: vec2(220.0, screen_height() - 130.0), size: vec2(140.0, 20.0) },
             Platform { pos: vec2(420.0, screen_height() - 240.0), size: vec2(140.0, 20.0) },
@@ -84,15 +140,26 @@ impl Game {
             // A small tricky jump
             Platform { pos: vec2(1600.0, screen_height() - 300.0), size: vec2(100.0, 20.0) },
             // Final ground stretch
-            Platform { pos: vec2(1800.0, screen_height() - 40.0), size: vec2(400.0, 40.0) },
+            Platform { pos: vec2(1800.0, floor_y), size: vec2(400.0, 40.0) },
+        ];
+
+        // Spike pits fill every gap between ground-level platforms, plus a
+        // long stretch below the elevated platforms.
+        let spike_y = floor_y + 40.0 - SPIKE_HEIGHT; // flush against the ground
+        let spikes = vec![
+            // Big pit between ground segment 1 (ends x=800) and ground segment 2 (starts x=1800)
+            Spike { pos: vec2(800.0, spike_y), width: 1000.0, height: SPIKE_HEIGHT },
+            // Pit after the final ground segment (ends x=2200)
+            Spike { pos: vec2(2200.0, spike_y), width: 200.0, height: SPIKE_HEIGHT },
         ];
 
         let start_x = 80.0;
-        let start_y = screen_height() - 40.0 - PLAYER_HEIGHT;
+        let start_y = floor_y - PLAYER_HEIGHT;
 
         Self {
             player: Player::new(start_x, start_y),
             platforms,
+            spikes,
         }
     }
 
@@ -157,19 +224,14 @@ impl Game {
         // ── Integrate position ──────────────────────────────────────────
         self.player.pos += self.player.vel * dt;
 
-        // ── Collision resolution ────────────────────────────────────────
-        // Only check the current platform set (small, so O(n) is fine)
+        // ── Platform collisions ─────────────────────────────────────────
         self.player.grounded = false;
 
         for plat in &self.platforms {
             if let Some(collision) = self.player.rect().intersect(plat.rect()) {
-                // Determine the dominant overlap axis
                 let overlap_x = collision.w;
                 let overlap_y = collision.h;
 
-                // Prevent "sticking" to walls — only resolve the smallest
-                // overlap direction when it's clear-cut, and prefer vertical
-                // landing when velocity is downward.
                 if overlap_x < overlap_y {
                     // Horizontal push-out
                     if self.player.vel.x > 0.0 {
@@ -194,8 +256,15 @@ impl Game {
             }
         }
 
+        // ── Spike collisions ────────────────────────────────────────────
+        for spike in &self.spikes {
+            if self.player.rect().intersect(spike.rect()).is_some() {
+                self.player.dead = true;
+                break;
+            }
+        }
+
         // ── Clamp to screen boundaries horizontally ─────────────────────
-        // (Don't let the player walk off the left edge of the world)
         if self.player.pos.x < 0.0 {
             self.player.pos.x = 0.0;
             self.player.vel.x = 0.0;
@@ -207,7 +276,6 @@ impl Game {
         let target_x = self.player.pos.x + self.player.size.x / 2.0 - screen_width() / 2.0;
         let target_y = self.player.pos.y + self.player.size.y / 2.0 - screen_height() / 2.0;
 
-        // Clamp so we don't show empty space to the left of the level
         let target_x = target_x.max(0.0);
 
         vec2(target_x, target_y.max(0.0))
@@ -223,46 +291,62 @@ impl Game {
         for plat in &self.platforms {
             let sx = plat.pos.x - cam.x;
             let sy = plat.pos.y - cam.y;
-            // Shadow / border
             draw_rectangle(sx, sy, plat.size.x, plat.size.y, Color::from_hex(0x16213e));
-            // Inner fill
             draw_rectangle(sx + 2.0, sy + 2.0, plat.size.x - 4.0, plat.size.y - 4.0, Color::from_hex(0x0f3460));
-            // Top highlight
             draw_line(sx + 4.0, sy + 1.0, sx + plat.size.x - 4.0, sy + 1.0, 2.0, Color::from_hex(0x533483));
         }
 
+        // ── Spikes ──────────────────────────────────────────────────────
+        for spike in &self.spikes {
+            spike.draw(cam);
+        }
+
         // ── Player ──────────────────────────────────────────────────────
-        let psx = self.player.pos.x - cam.x;
-        let psy = self.player.pos.y - cam.y;
+        if !self.player.dead {
+            let psx = self.player.pos.x - cam.x;
+            let psy = self.player.pos.y - cam.y;
 
-        // Body
-        let body_color = if self.player.grounded {
-            Color::from_hex(0xe94560)
-        } else {
-            Color::from_hex(0xf5a623)
-        };
-        draw_rectangle(psx, psy, self.player.size.x, self.player.size.y, body_color);
-        // A lighter inner rectangle for depth
-        draw_rectangle(psx + 3.0, psy + 3.0, self.player.size.x - 6.0, self.player.size.y - 6.0,
-                       Color::from_rgba(255, 255, 255, 30));
+            let body_color = if self.player.grounded {
+                Color::from_hex(0xe94560)
+            } else {
+                Color::from_hex(0xf5a623)
+            };
+            draw_rectangle(psx, psy, self.player.size.x, self.player.size.y, body_color);
+            draw_rectangle(psx + 3.0, psy + 3.0, self.player.size.x - 6.0, self.player.size.y - 6.0,
+                           Color::from_rgba(255, 255, 255, 30));
 
-        // Eyes (indicate facing direction)
-        let (eye_x, pupil_x) = if self.player.facing_right {
-            (psx + self.player.size.x * 0.55, psx + self.player.size.x * 0.65)
-        } else {
-            (psx + self.player.size.x * 0.25, psx + self.player.size.x * 0.15)
-        };
-        let eye_y = psy + self.player.size.y * 0.25;
+            let (eye_x, pupil_x) = if self.player.facing_right {
+                (psx + self.player.size.x * 0.55, psx + self.player.size.x * 0.65)
+            } else {
+                (psx + self.player.size.x * 0.25, psx + self.player.size.x * 0.15)
+            };
+            let eye_y = psy + self.player.size.y * 0.25;
 
-        // White of eye
-        draw_circle(eye_x, eye_y, 4.0, WHITE);
-        // Pupil
-        draw_circle(pupil_x, eye_y, 2.0, BLACK);
+            draw_circle(eye_x, eye_y, 4.0, WHITE);
+            draw_circle(pupil_x, eye_y, 2.0, BLACK);
+        }
 
         // ── HUD ─────────────────────────────────────────────────────────
         let hud_text = format!("x: {:.0}  y: {:.0}  grounded: {}", self.player.pos.x, self.player.pos.y, self.player.grounded);
         draw_text(&hud_text, 12.0, 28.0, 20.0, Color::from_hex(0xaaaaaa));
         draw_text("Arrow keys / WASD to move, Space to jump  |  R to reset", 12.0, screen_height() - 12.0, 16.0, Color::from_hex(0x666666));
+
+        // ── Death overlay ───────────────────────────────────────────────
+        if self.player.dead {
+            // Semi-transparent overlay
+            draw_rectangle(0.0, 0.0, screen_width(), screen_height(),
+                           Color::from_rgba(0, 0, 0, 180));
+
+            let title = "YOU IMPALED YOURSELF";
+            let title_size = measure_text(title, None, 48, 1.0);
+            draw_text(title, screen_width() / 2.0 - title_size.width / 2.0, screen_height() / 2.0 - 20.0,
+                      48.0, Color::from_hex(0xcc0000));
+
+            let subtitle = "Press Space to respawn";
+            let sub_size = measure_text(subtitle, None, 22, 1.0);
+            draw_text(subtitle, screen_width() / 2.0 - sub_size.width / 2.0, screen_height() / 2.0 + 30.0,
+                      22.0, Color::from_hex(0xaaaaaa));
+        }
     }
 }
 
@@ -273,12 +357,16 @@ async fn main() {
     let mut game = Game::new();
 
     loop {
-        let dt = get_frame_time().min(0.05); // cap to avoid physics blowups
+        let dt = get_frame_time().min(0.05);
 
         // ── Update ──────────────────────────────────────────────────────
-        game.update_player(dt);
+        if !game.player.dead {
+            game.update_player(dt);
+        } else if is_key_pressed(KeyCode::Space) {
+            game = Game::new();
+        }
 
-        // Reset with R
+        // Manual reset
         if is_key_pressed(KeyCode::R) {
             game = Game::new();
         }
