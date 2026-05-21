@@ -2,18 +2,17 @@ use macroquad::prelude::*;
 
 // ── Constants ────────────────────────────────────────────────────────────────
 
-const GRAVITY: f32 = 980.0;       // pixels/sec^2
-const JUMP_VELOCITY: f32 = -520.0; // pixels/sec (upward)
-const MOVE_SPEED: f32 = 280.0;     // pixels/sec
+const GRAVITY: f32 = 980.0;
+const JUMP_VELOCITY: f32 = -520.0;
+const MOVE_SPEED: f32 = 280.0;
 const PLAYER_WIDTH: f32 = 28.0;
 const PLAYER_HEIGHT: f32 = 36.0;
 
-/// The "coyote time" window — frames after leaving a ledge where jump is still
-/// allowed. Makes the controls feel much more responsive.
-const COYOTE_FRAMES: i32 = 6;
+/// Drawn sprite size (can be larger than the collision box).
+const SPRITE_WIDTH: f32 = 48.0;
+const SPRITE_HEIGHT: f32 = 48.0;
 
-/// Frames during which a jump is buffered so pressing the button slightly
-/// before landing still triggers an immediate jump.
+const COYOTE_FRAMES: i32 = 6;
 const JUMP_BUFFER_FRAMES: i32 = 5;
 
 const SPIKE_HEIGHT: f32 = 24.0;
@@ -31,6 +30,8 @@ struct Player {
     jump_buffer_counter: i32,
     facing_right: bool,
     dead: bool,
+    /// Accumulated time for walk-cycle animation.
+    walk_time: f32,
 }
 
 impl Player {
@@ -44,6 +45,7 @@ impl Player {
             jump_buffer_counter: 0,
             facing_right: true,
             dead: false,
+            walk_time: 0.0,
         }
     }
 
@@ -64,7 +66,6 @@ impl Platform {
     }
 }
 
-/// A spike pit that kills the player on contact.
 #[derive(Debug, Clone, PartialEq)]
 struct Spike {
     pos: Vec2,
@@ -77,15 +78,17 @@ impl Spike {
         Rect::new(self.pos.x, self.pos.y, self.width, self.height)
     }
 
-    /// Draw the spike pit as a row of triangular teeth.
     fn draw(&self, offset: Vec2) {
         let sx = self.pos.x - offset.x;
         let sy = self.pos.y - offset.y;
 
+        if sx + self.width < 0.0 || sx > screen_width() {
+            return; // off-screen culling
+        }
+
         let tooth_count = (self.width / SPIKE_TOOTH_WIDTH).ceil() as usize;
         let spacing = self.width / tooth_count as f32;
 
-        // Pit background
         draw_rectangle(sx, sy, self.width, self.height, Color::from_hex(0x0d0d1a));
 
         for i in 0..tooth_count {
@@ -93,16 +96,14 @@ impl Spike {
             let left = cx - spacing / 2.0;
             let right = cx + spacing / 2.0;
             let bottom = sy + self.height;
-            let tip_y = sy + 2.0; // point up
+            let tip_y = sy + 2.0;
 
-            // Outline
             draw_triangle(
                 vec2(left, bottom),
                 vec2(right, bottom),
                 vec2(cx, tip_y),
                 Color::from_hex(0x8b0000),
             );
-            // Inner highlight
             draw_triangle(
                 vec2(left + 2.0, bottom - 1.0),
                 vec2(right - 2.0, bottom - 1.0),
@@ -119,37 +120,28 @@ struct Game {
     player: Player,
     platforms: Vec<Platform>,
     spikes: Vec<Spike>,
+    dog_texture: Texture2D,
 }
 
 impl Game {
-    fn new() -> Self {
+    fn new(dog_texture: Texture2D) -> Self {
         let floor_y = screen_height() - 40.0;
 
         let platforms = vec![
-            // Ground
             Platform { pos: vec2(0.0, floor_y), size: vec2(800.0, 40.0) },
-            // Floating platforms going up and to the right
             Platform { pos: vec2(220.0, screen_height() - 130.0), size: vec2(140.0, 20.0) },
             Platform { pos: vec2(420.0, screen_height() - 240.0), size: vec2(140.0, 20.0) },
             Platform { pos: vec2(620.0, screen_height() - 350.0), size: vec2(140.0, 20.0) },
-            // Higher challenge platforms
             Platform { pos: vec2(850.0, screen_height() - 180.0), size: vec2(130.0, 20.0) },
             Platform { pos: vec2(1050.0, screen_height() - 280.0), size: vec2(130.0, 20.0) },
-            // A long high platform
             Platform { pos: vec2(1250.0, screen_height() - 400.0), size: vec2(250.0, 20.0) },
-            // A small tricky jump
             Platform { pos: vec2(1600.0, screen_height() - 300.0), size: vec2(100.0, 20.0) },
-            // Final ground stretch
             Platform { pos: vec2(1800.0, floor_y), size: vec2(400.0, 40.0) },
         ];
 
-        // Spike pits fill every gap between ground-level platforms, plus a
-        // long stretch below the elevated platforms.
-        let spike_y = floor_y + 40.0 - SPIKE_HEIGHT; // flush against the ground
+        let spike_y = floor_y + 40.0 - SPIKE_HEIGHT;
         let spikes = vec![
-            // Big pit between ground segment 1 (ends x=800) and ground segment 2 (starts x=1800)
             Spike { pos: vec2(800.0, spike_y), width: 1000.0, height: SPIKE_HEIGHT },
-            // Pit after the final ground segment (ends x=2200)
             Spike { pos: vec2(2200.0, spike_y), width: 200.0, height: SPIKE_HEIGHT },
         ];
 
@@ -160,10 +152,15 @@ impl Game {
             player: Player::new(start_x, start_y),
             platforms,
             spikes,
+            dog_texture,
         }
     }
 
-    /// Move the player and resolve collisions with every platform.
+    /// Reset the game world while keeping the loaded texture.
+    fn reset(&mut self) {
+        *self = Self::new(self.dog_texture.clone());
+    }
+
     fn update_player(&mut self, dt: f32) {
         // ── Input ────────────────────────────────────────────────────────
         let mut move_x = 0.0;
@@ -174,11 +171,17 @@ impl Game {
             move_x += 1.0;
         }
 
-        // Track facing direction for visual feedback
         if move_x > 0.0 {
             self.player.facing_right = true;
         } else if move_x < 0.0 {
             self.player.facing_right = false;
+        }
+
+        // Walk animation timer
+        if self.player.grounded && move_x != 0.0 {
+            self.player.walk_time += dt;
+        } else if self.player.grounded {
+            self.player.walk_time = 0.0;
         }
 
         // Jump input buffering
@@ -193,8 +196,6 @@ impl Game {
 
         // ── Apply gravity ───────────────────────────────────────────────
         self.player.vel.y += GRAVITY * dt;
-
-        // Cap fall speed so we don't clip through thin platforms
         self.player.vel.y = self.player.vel.y.clamp(-1200.0, 1200.0);
 
         // ── Coyote time ─────────────────────────────────────────────────
@@ -212,8 +213,6 @@ impl Game {
             self.player.jump_buffer_counter = 0;
         }
 
-        // Variable jump height: if the player releases jump while rising,
-        // cut the upward velocity in half.
         let jump_released = is_key_released(KeyCode::Space)
             || is_key_released(KeyCode::W)
             || is_key_released(KeyCode::Up);
@@ -233,7 +232,6 @@ impl Game {
                 let overlap_y = collision.h;
 
                 if overlap_x < overlap_y {
-                    // Horizontal push-out
                     if self.player.vel.x > 0.0 {
                         self.player.pos.x -= overlap_x;
                     } else if self.player.vel.x < 0.0 {
@@ -241,14 +239,11 @@ impl Game {
                     }
                     self.player.vel.x = 0.0;
                 } else {
-                    // Vertical push-out
                     if self.player.vel.y > 0.0 {
-                        // Landing on top
                         self.player.pos.y -= overlap_y;
                         self.player.vel.y = 0.0;
                         self.player.grounded = true;
                     } else if self.player.vel.y < 0.0 {
-                        // Hitting head on bottom
                         self.player.pos.y += overlap_y;
                         self.player.vel.y = 0.0;
                     }
@@ -264,21 +259,17 @@ impl Game {
             }
         }
 
-        // ── Clamp to screen boundaries horizontally ─────────────────────
+        // ── Clamp to screen boundaries ──────────────────────────────────
         if self.player.pos.x < 0.0 {
             self.player.pos.x = 0.0;
             self.player.vel.x = 0.0;
         }
     }
 
-    /// Compute the camera offset so the player is roughly centred.
     fn camera_offset(&self) -> Vec2 {
         let target_x = self.player.pos.x + self.player.size.x / 2.0 - screen_width() / 2.0;
         let target_y = self.player.pos.y + self.player.size.y / 2.0 - screen_height() / 2.0;
-
-        let target_x = target_x.max(0.0);
-
-        vec2(target_x, target_y.max(0.0))
+        vec2(target_x.max(0.0), target_y.max(0.0))
     }
 
     fn draw(&self) {
@@ -301,29 +292,9 @@ impl Game {
             spike.draw(cam);
         }
 
-        // ── Player ──────────────────────────────────────────────────────
+        // ── Player (animated dog sprite) ────────────────────────────────
         if !self.player.dead {
-            let psx = self.player.pos.x - cam.x;
-            let psy = self.player.pos.y - cam.y;
-
-            let body_color = if self.player.grounded {
-                Color::from_hex(0xe94560)
-            } else {
-                Color::from_hex(0xf5a623)
-            };
-            draw_rectangle(psx, psy, self.player.size.x, self.player.size.y, body_color);
-            draw_rectangle(psx + 3.0, psy + 3.0, self.player.size.x - 6.0, self.player.size.y - 6.0,
-                           Color::from_rgba(255, 255, 255, 30));
-
-            let (eye_x, pupil_x) = if self.player.facing_right {
-                (psx + self.player.size.x * 0.55, psx + self.player.size.x * 0.65)
-            } else {
-                (psx + self.player.size.x * 0.25, psx + self.player.size.x * 0.15)
-            };
-            let eye_y = psy + self.player.size.y * 0.25;
-
-            draw_circle(eye_x, eye_y, 4.0, WHITE);
-            draw_circle(pupil_x, eye_y, 2.0, BLACK);
+            self.draw_dog_sprite(cam);
         }
 
         // ── HUD ─────────────────────────────────────────────────────────
@@ -333,7 +304,6 @@ impl Game {
 
         // ── Death overlay ───────────────────────────────────────────────
         if self.player.dead {
-            // Semi-transparent overlay
             draw_rectangle(0.0, 0.0, screen_width(), screen_height(),
                            Color::from_rgba(0, 0, 0, 180));
 
@@ -348,13 +318,73 @@ impl Game {
                       22.0, Color::from_hex(0xaaaaaa));
         }
     }
+
+    /// Draw the dog with walk-cycle bobbing and jump squash/stretch.
+    fn draw_dog_sprite(&self, cam: Vec2) {
+        let p = &self.player;
+
+        // Centre the sprite on the collision box
+        let draw_x = p.pos.x + (p.size.x - SPRITE_WIDTH) / 2.0 - cam.x;
+        let draw_y = p.pos.y + (p.size.y - SPRITE_HEIGHT) / 2.0 - cam.y;
+
+        // ── Compute animation transforms ────────────────────────────────
+        let (scale_x, scale_y, offset_y);
+
+        if p.grounded {
+            if p.vel.x != 0.0 {
+                // Walking: vertical bob with gentle squish/stretch
+                let cycle = (p.walk_time * 10.0).sin();
+                // Bob up/down by 2px
+                offset_y = cycle * 2.0;
+                // Subtle squash/stretch (0.92 – 1.08)
+                scale_x = 1.0 + cycle * 0.06;
+                scale_y = 1.0 - cycle * 0.06;
+            } else {
+                // Idle: very subtle breathing
+                let breath = (p.walk_time * 3.0).sin() * 0.02;
+                offset_y = 0.0;
+                scale_x = 1.0 + breath;
+                scale_y = 1.0 - breath;
+            }
+        } else {
+            // In air: stretch vertically, squish horizontally
+            let t = (p.vel.y / 800.0).clamp(-0.15, 0.15);
+            offset_y = 0.0;
+            scale_x = 1.0 + t;   // widen when falling fast
+            scale_y = 1.0 - t;   // lengthen when falling fast
+        }
+
+        // ── Flip based on facing direction ──────────────────────────────
+        let flip = if p.facing_right { 1.0 } else { -1.0 };
+
+        // ── Draw the dog ────────────────────────────────────────────────
+        let half_w = SPRITE_WIDTH / 2.0;
+        let half_h = SPRITE_HEIGHT / 2.0;
+        let cx = draw_x + half_w;
+        let cy = draw_y + half_h + offset_y;
+
+        draw_texture_ex(
+            &self.dog_texture,
+            cx - half_w * scale_x,
+            cy - half_h * scale_y,
+            WHITE,
+            DrawTextureParams {
+                dest_size: Some(vec2(SPRITE_WIDTH * scale_x, SPRITE_HEIGHT * scale_y)),
+                flip_x: flip < 0.0,
+                ..Default::default()
+            },
+        );
+    }
 }
 
 // ── Entry point ──────────────────────────────────────────────────────────────
 
 #[macroquad::main("Platformer")]
 async fn main() {
-    let mut game = Game::new();
+    let dog_texture = load_texture("assets/Dog.png").await.unwrap();
+    dog_texture.set_filter(FilterMode::Nearest);
+
+    let mut game = Game::new(dog_texture);
 
     loop {
         let dt = get_frame_time().min(0.05);
@@ -363,12 +393,11 @@ async fn main() {
         if !game.player.dead {
             game.update_player(dt);
         } else if is_key_pressed(KeyCode::Space) {
-            game = Game::new();
+            game.reset();
         }
 
-        // Manual reset
         if is_key_pressed(KeyCode::R) {
-            game = Game::new();
+            game.reset();
         }
 
         // ── Draw ────────────────────────────────────────────────────────
