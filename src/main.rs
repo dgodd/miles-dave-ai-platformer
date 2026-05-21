@@ -372,36 +372,44 @@ fn draw_dog_sprite(cx: f32, cy: f32, p: &Player) {
     // Absolute position from local offset
     let ptx = |local_x: f32, local_y: f32| (lx(local_x), cy + local_y);
 
-    // ── Body ────────────────────────────────────────────────────────────
+    // ── Body (made from overlapping circles for a smooth organic shape) ──
+    //
+    //  Rump circle  ->  Body rect  ->  Shoulder circle  ->  Head circle
+    //      (left)                                        (right, front)
+    //
     let body_cx = body_bob_x;
     let body_cy = 1.0 + body_bob_y;
     let (bx, by) = ptx(body_cx, body_cy);
 
-    // Main body — slightly rounded rectangle (extends from bx-12 to bx+12)
-    draw_rectangle(bx - 12.0, by - 6.0, 24.0, 14.0, FUR);
-    // Belly highlight
-    draw_rectangle(bx - 9.0, by - 2.0, 18.0, 8.0, FUR_LIGHT);
+    // --- Core body rectangle ---
+    draw_rectangle(bx - 10.0, by - 6.0, 20.0, 14.0, FUR);
 
-    // ── Neck bridge (connects body to head) ─────────────────────────────
-    // Fills the gap between body right edge (bx+12) and head (bx+8)
-    draw_rectangle(bx + 7.0, by - 7.0, 7.0, 9.0, FUR);
+    // --- Rump (left, blends body into tail) ---
+    draw_circle(lx(bx - 9.0), by - 1.0, 7.0, FUR);
+
+    // --- Shoulder (right, blends body into head) ---
+    draw_circle(lx(bx + 9.0), by - 2.0, 8.0, FUR);
+
+    // --- Belly highlight (over the core body) ---
+    draw_rectangle(bx - 8.0, by - 1.0, 16.0, 6.0, FUR_LIGHT);
+    draw_circle(lx(bx - 6.0), by + 2.0, 3.0, FUR_LIGHT);
+    draw_circle(lx(bx + 6.0), by + 2.0, 3.0, FUR_LIGHT);
+
+    // ── Tail ────────────────────────────────────────────────────────────
+    let tail_anchor_x = bx - 15.0;
+    let tail_anchor_y = by - 3.0;
+    // Tail comes out from the rump area
+    let tip_x = tail_anchor_x + (tail_angle * 0.7 - 0.6).cos() * 10.0;
+    let tip_y = tail_anchor_y + (tail_angle * 0.7 - 0.6).sin() * 10.0 - 6.0;
+    draw_line(lx(tail_anchor_x), tail_anchor_y, lx(tip_x), tip_y, 5.0, FUR);
+    // Fluffy tail tip
+    draw_circle(lx(tip_x), tip_y, 4.0, FUR_LIGHT);
+    draw_circle(lx(tip_x - 1.0), tip_y - 1.0, 2.5, FUR_LIGHT);
 
     // ── Back legs ───────────────────────────────────────────────────────
     let bl_swing = (leg_phase + 0.5).sin() * 4.0;
     let bl_off = if p.grounded && p.vel.x != 0.0 { bl_swing } else { 0.0 };
-    draw_back_leg(lx(bx - 7.0 + bl_off * 0.3), by + 7.0, p.grounded, flip);
-
-    // ── Tail ────────────────────────────────────────────────────────────
-    // Tail base is now inset into the body for a connected look
-    let tail_base_x = bx - 10.0;
-    let tail_base_y = by - 3.0;
-    // Rump circle blends tail into body
-    draw_circle(lx(tail_base_x), tail_base_y, 4.0, FUR);
-    let tip_x = tail_base_x + (tail_angle * 0.8 - 0.8).cos() * 9.0;
-    let tip_y = tail_base_y + (tail_angle * 0.8 - 0.8).sin() * 9.0 - 6.0;
-    draw_line(lx(tail_base_x), tail_base_y, lx(tip_x), tip_y, 4.5, FUR);
-    // Tail tip (fluff)
-    draw_circle(lx(tip_x), tip_y, 3.5, FUR_LIGHT);
+    draw_back_leg(lx(bx - 6.0 + bl_off * 0.3), by + 7.0, p.grounded, flip);
 
     // ── Front legs ──────────────────────────────────────────────────────
     let fl_swing = (leg_phase).sin() * 4.0;
@@ -409,60 +417,65 @@ fn draw_dog_sprite(cx: f32, cy: f32, p: &Player) {
     draw_front_leg(lx(bx + 6.5 + fl_off * 0.3), by + 7.0, p.grounded, flip);
 
     // ── Head ────────────────────────────────────────────────────────────
-    // Head overlaps the body more generously (was bx + 11, now bx + 8)
-    let head_x = bx + 8.0;
+    // Head sits on the shoulder circle — they overlap heavily
+    let head_x = bx + 16.0;
     let head_y = by - 4.0;
     let (hx, hy) = ptx(head_x, head_y);
 
-    // Ears (behind head)
+    // Ears (behind head, attached to top of head circle)
     let ear_angle = std::f32::consts::FRAC_PI_4 + ear_tilt;
     // Back ear
     draw_triangle(
-        vec2(lx(head_x + 4.0), hy - 5.0),
-        vec2(lx(head_x + 4.0 + ear_angle.cos() * 7.0), hy - 5.0 + ear_angle.sin().abs() * 6.0),
+        vec2(lx(head_x + 3.0), hy - 6.0),
+        vec2(lx(head_x + 3.0 + ear_angle.cos() * 8.0), hy - 6.0 + (ear_angle.sin().abs() + 0.2) * 7.0),
         vec2(lx(head_x + 8.0), hy - 2.0),
         EAR_COLOR,
     );
     // Front ear
     draw_triangle(
-        vec2(lx(head_x - 2.0), hy - 5.0),
-        vec2(lx(head_x - 2.0 - ear_angle.cos() * 7.0), hy - 5.0 + ear_angle.sin().abs() * 6.0),
+        vec2(lx(head_x - 2.0), hy - 6.0),
+        vec2(lx(head_x - 2.0 - ear_angle.cos() * 8.0), hy - 6.0 + (ear_angle.sin().abs() + 0.2) * 7.0),
         vec2(lx(head_x + 2.0), hy - 2.0),
         EAR_COLOR,
     );
 
-    // Head circle (radius 7, so spans bx+1 to bx+15 — well inside body)
-    draw_circle(hx, hy, 7.0, FUR);
-    // Snout
-    draw_circle(hx + 4.0, hy + 2.0, 4.0, FUR_LIGHT);
+    // Head circle (radius 8, extends from bx+8 to bx+24 — overlaps shoulder)
+    draw_circle(hx, hy, 8.0, FUR);
+    // Jaw/snout fill — same colour as head to keep it one piece
+    draw_circle(hx + 5.0, hy + 2.0, 5.0, FUR);
+    // Snout highlight
+    draw_circle(hx + 6.0, hy + 2.0, 3.5, FUR_LIGHT);
 
     // Eyes
-    draw_circle(hx + 1.0, hy - 1.0, 2.5, EYE_WHITE);
-    draw_circle(hx + 4.0, hy - 1.0, 2.5, EYE_WHITE);
+    draw_circle(hx + 2.0, hy - 1.5, 3.0, EYE_WHITE);
+    draw_circle(hx + 5.5, hy - 1.5, 3.0, EYE_WHITE);
     // Pupils (look in the direction of movement)
-    let pupil_off = if p.facing_right { 0.8 } else { -0.8 };
-    draw_circle(hx + 1.0 + pupil_off, hy - 1.0, 1.3, EYE_PUPIL);
-    draw_circle(hx + 4.0 + pupil_off, hy - 1.0, 1.3, EYE_PUPIL);
+    let pupil_off = if p.facing_right { 1.0 } else { -1.0 };
+    draw_circle(hx + 2.0 + pupil_off, hy - 1.5, 1.5, EYE_PUPIL);
+    draw_circle(hx + 5.5 + pupil_off, hy - 1.5, 1.5, EYE_PUPIL);
     // Eye shine
-    draw_circle(hx + 1.5 + pupil_off * 0.5, hy - 1.8, 0.6, WHITE);
-    draw_circle(hx + 4.5 + pupil_off * 0.5, hy - 1.8, 0.6, WHITE);
+    draw_circle(hx + 2.5 + pupil_off * 0.5, hy - 2.5, 0.7, WHITE);
+    draw_circle(hx + 6.0 + pupil_off * 0.5, hy - 2.5, 0.7, WHITE);
 
     // Nose
-    draw_circle(hx + 6.0, hy + 2.5, 1.8, NOSE_COLOR);
+    draw_circle(hx + 8.0, hy + 3.0, 2.0, NOSE_COLOR);
+    // Nose highlight
+    draw_circle(hx + 7.8, hy + 2.5, 0.5, Color::from_hex(0x3a2510));
 
-    // Mouth
+    // Mouth line
+    draw_line(hx + 3.0, hy + 5.0, hx + 7.5, hy + 5.0, 1.5, FUR_DARK);
+    // Tongue
     if tongue_out {
-        draw_rectangle(hx + 3.5, hy + 4.0, 2.5, 3.5, TONGUE);
-        draw_circle(hx + 4.75, hy + 4.0, 1.5, TONGUE);
-    } else {
-        draw_line(hx + 2.0, hy + 4.0, hx + 6.0, hy + 4.0, 1.0, FUR_DARK);
+        draw_rectangle(hx + 4.5, hy + 5.0, 2.5, 4.0, TONGUE);
+        draw_circle(hx + 5.75, hy + 5.0, 1.5, TONGUE);
     }
 
     // ── Collar ──────────────────────────────────────────────────────────
-    draw_line(lx(head_x - 3.0), hy + 5.0, lx(head_x + 5.0), hy + 6.0, 2.5, COLLAR);
-    // Collar tag (shiny gold)
-    draw_circle(lx(head_x + 1.0), hy + 7.0, 2.0, Color::from_hex(0xffd700));
-    draw_circle(lx(head_x + 0.6), hy + 6.6, 0.6, Color::from_hex(0xfff8dc));
+    // Collar sits where the neck would be, between head and shoulder
+    draw_line(lx(bx + 8.0), by - 7.0, lx(bx + 15.0), hy + 5.0, 3.0, COLLAR);
+    // Collar tag
+    draw_circle(lx(bx + 12.0), by - 3.0, 2.5, Color::from_hex(0xffd700));
+    draw_circle(lx(bx + 11.5), by - 3.5, 0.8, Color::from_hex(0xfff8dc));
 }
 
 /// Draw a front leg at the given world position.
