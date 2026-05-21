@@ -215,6 +215,13 @@ impl Baby {
 
 // ── Game state ───────────────────────────────────────────────────────────────
 
+#[derive(Debug, Clone, PartialEq)]
+enum GameState {
+    Title,
+    Playing,
+    Tutorial,
+}
+
 struct Game {
     player: Player,
     platforms: Vec<Platform>,
@@ -223,6 +230,7 @@ struct Game {
     poops: Vec<Poop>,
     particles: Vec<Particle>,
     death_timer: f32,
+    state: GameState,
 }
 
 impl Game {
@@ -268,11 +276,13 @@ impl Game {
             poops: vec![],
             particles: vec![],
             death_timer: 0.0,
+            state: GameState::Title,
         }
     }
 
     fn reset(&mut self) {
         *self = Self::new();
+        self.state = GameState::Playing;
     }
 
     fn die(&mut self) {
@@ -408,10 +418,22 @@ impl Game {
     }
 
     fn draw(&self) {
-        let cam = self.camera_offset();
-
         // ── Background ──────────────────────────────────────────────────
         clear_background(Color::from_hex(0x1a1a2e));
+
+        match self.state {
+            GameState::Title => {
+                self.draw_title_screen();
+                return;
+            }
+            GameState::Tutorial => {
+                self.draw_tutorial_screen();
+                return;
+            }
+            GameState::Playing => {}
+        }
+
+        let cam = self.camera_offset();
 
         // ── Platforms ───────────────────────────────────────────────────
         for plat in &self.platforms {
@@ -480,6 +502,113 @@ impl Game {
                       22.0, Color::from_hex(0xaaaaaa));
         }
     }
+
+    // ── Title screen ────────────────────────────────────────────────────
+    fn draw_title_screen(&self) {
+        let cw = screen_width();
+        let ch = screen_height();
+
+        // Title text
+        let title_font_size = 72.0;
+        let title = "PLATFORMER";
+        let ts = measure_text(title, None, title_font_size as _, 1.0);
+        draw_text(title, (cw - ts.width) / 2.0, ch * 0.18, title_font_size, Color::from_hex(0xe94560));
+
+        // Subtitle
+        let sub = "A dog and his tennis ball";
+        let sub_font = 22.0;
+        let ss = measure_text(sub, None, sub_font as _, 1.0);
+        draw_text(sub, (cw - ss.width) / 2.0, ch * 0.28, sub_font, Color::from_hex(0xaaaaaa));
+
+        // Dog sprite (left of centre)
+        let dog_cx = cw * 0.35;
+        let dog_cy = ch * 0.48;
+        let dummy = Player::new(0.0, 0.0);
+        draw_dog_sprite(dog_cx, dog_cy, &dummy);
+
+        // Tennis ball (right of centre)
+        let ball_cx = cw * 0.65;
+        let ball_cy = ch * 0.48;
+        draw_tennis_ball(ball_cx, ball_cy, 24.0);
+
+        // Buttons
+        let bw = 220.0;
+        let bh = 50.0;
+        let bx = (cw - bw) / 2.0;
+        let by = ch * 0.62;
+        let gap = 64.0;
+        let button_names = ["Play", "Tutorial", "Quit"];
+
+        for (i, name) in button_names.iter().enumerate() {
+            let iy = by + i as f32 * gap;
+            let hovered = is_mouse_over(bx, iy, bw, bh);
+            let bg = if hovered { Color::from_hex(0x533483) } else { Color::from_hex(0x16213e) };
+            draw_rectangle(bx, iy, bw, bh, bg);
+            draw_rectangle(bx + 2.0, iy + 2.0, bw - 4.0, bh - 4.0, Color::from_hex(0x0f3460));
+            let label_size = measure_text(name, None, 28, 1.0);
+            draw_text(name, bx + (bw - label_size.width) / 2.0, iy + bh / 2.0 + 10.0,
+                      28.0, Color::from_hex(0xcccccc));
+        }
+    }
+
+    fn draw_tutorial_screen(&self) {
+        let cw = screen_width();
+        let ch = screen_height();
+
+        draw_text("TUTORIAL", (cw - measure_text("TUTORIAL", None, 48, 1.0).width) / 2.0,
+                  ch * 0.15, 48.0, Color::from_hex(0xe94560));
+
+        let lines = [
+            "Arrow keys / WASD — Move left and right",
+            "Space / W / Up — Jump",
+            "Q — Drop a poop to scare babies",
+            "R — Reset the level",
+            "",
+            "Avoid the spike pits and crawling babies.",
+            "If a baby pulls your tail, you lose!",
+        ];
+        let line_h = 32.0;
+        let start_y = ch * 0.28;
+        for (i, line) in lines.iter().enumerate() {
+            let ls = measure_text(line, None, 20, 1.0);
+            draw_text(line, (cw - ls.width) / 2.0, start_y + i as f32 * line_h,
+                      20.0, Color::from_hex(0xaaaaaa));
+        }
+
+        // Back button
+        let bw = 180.0;
+        let bh = 44.0;
+        let bx = (cw - bw) / 2.0;
+        let by = ch * 0.78;
+        draw_rectangle(bx, by, bw, bh, Color::from_hex(0x16213e));
+        draw_rectangle(bx + 2.0, by + 2.0, bw - 4.0, bh - 4.0, Color::from_hex(0x0f3460));
+        let label = "Back (Escape)";
+        let ls = measure_text(label, None, 24, 1.0);
+        draw_text(label, bx + (bw - ls.width) / 2.0, by + bh / 2.0 + 8.0, 24.0, Color::from_hex(0xcccccc));
+    }
+}
+
+// ── Tennis ball drawing ──────────────────────────────────────────────────────
+
+fn draw_tennis_ball(cx: f32, cy: f32, radius: f32) {
+    // Main ball
+    draw_circle(cx, cy, radius, Color::from_hex(0xd4c73c));
+    draw_circle(cx, cy, radius - 1.5, Color::from_hex(0xe8da4a));
+
+    // Seam lines using partial-circle lines
+    let r = radius * 0.82;
+    draw_circle_lines(cx, cy, r, 2.5, Color::from_hex(0xf0f0f0));
+    draw_circle_lines(cx + 2.0, cy, r * 0.7, 2.0, Color::from_hex(0xf0f0f0));
+
+    // Highlight
+    draw_circle(cx - radius * 0.25, cy - radius * 0.25, radius * 0.15,
+                Color::from_rgba(255, 255, 255, 60));
+}
+
+/// Check if the mouse is currently over the given rectangle.
+fn is_mouse_over(x: f32, y: f32, w: f32, h: f32) -> bool {
+    let (mx, my) = mouse_position();
+    mx >= x && mx <= x + w && my >= y && my <= y + h
 }
 
 // ── Dog sprite drawing ───────────────────────────────────────────────────────
@@ -732,87 +861,7 @@ async fn main() {
     loop {
         let dt = get_frame_time().min(0.05);
 
-        // ── Update ──────────────────────────────────────────────────────
-        if !game.player.dead {
-            game.update_player(dt);
-
-            // Update babies: flee physics (with gravity + platform collision)
-            // or normal patrol, plus poop detection
-            for baby in &mut game.babies {
-                if baby.flee_timer > 0.0 {
-                    // Fleeing: gravity, movement, platform collision
-                    baby.flee_timer -= dt;
-                    baby.vel.y += GRAVITY * dt;
-                    baby.vel.y = baby.vel.y.clamp(-1200.0, 1200.0);
-                    baby.pos.x += baby.vel.x * dt;
-                    baby.pos.y += baby.vel.y * dt;
-
-                    // Check landing on any platform
-                    let mut landed = false;
-                    'platforms: for plat in &game.platforms {
-                        if let Some(collision) = baby.rect().intersect(plat.rect())
-                            && baby.vel.y > 0.0
-                        {
-                            // Landed on top
-                            baby.pos.y -= collision.h;
-                            baby.vel.y = 0.0;
-                            baby.floor_y = plat.pos.y;
-                            landed = true;
-                            break 'platforms;
-                        }
-                    }
-
-                    if baby.flee_timer <= 0.0 && landed {
-                        // Resume normal patrol on the platform we landed on
-                        let dir = if baby.facing_right { 1.0 } else { -1.0 };
-                        baby.vel.x = dir * BABY_SPEED;
-                        baby.min_x = plat_start_x(baby.pos.x, &game.platforms, baby.floor_y);
-                        baby.max_x = plat_end_x(baby.pos.x, &game.platforms, baby.floor_y);
-                    }
-                } else {
-                    // Normal patrol
-                    baby.update(dt);
-
-                    // Check for nearby poops
-                    let baby_cx = baby.pos.x + baby.size.x / 2.0;
-                    for poop in &mut game.poops {
-                        if poop.eaten {
-                            continue;
-                        }
-                        let dist = (baby_cx - poop.pos.x).abs();
-                        if dist < 120.0 {
-                            if !mq_rand::rand().is_multiple_of(4) {
-                                // 75%: flee away from the poop
-                                let dir = if baby_cx < poop.pos.x { -1.0 } else { 1.0 };
-                                baby.vel.x = dir * BABY_SPEED * 2.0;
-                                baby.facing_right = dir > 0.0;
-                                baby.flee_timer = 2.5;
-                                baby.vel.y = 0.0;
-                            } else {
-                                // 25%: eat it
-                                poop.eaten = true;
-                            }
-                            break;
-                        }
-                    }
-                }
-            }
-
-            // Spawn a poop when pressing Q
-            if is_key_pressed(KeyCode::Q) {
-                let px = game.player.pos.x + game.player.size.x / 2.0;
-                let py = game.player.pos.y + game.player.size.y;
-                game.poops.push(Poop::new(px, py));
-            }
-        } else if game.death_timer <= 0.0 && is_key_pressed(KeyCode::Space) {
-            game.reset();
-        }
-
-        if is_key_pressed(KeyCode::R) {
-            game.reset();
-        }
-
-        // ── Update particles and death timer (always) ─────────────────
+        // ── Update particles and death timer (always) ───────────────────
         if game.death_timer > 0.0 {
             game.death_timer -= dt;
         }
@@ -824,6 +873,107 @@ async fn main() {
             p.pos += p.vel * dt;
             true
         });
+
+        match &game.state {
+            GameState::Title | GameState::Tutorial => {
+                // ── Title / Tutorial screen input ────────────────────────
+                if is_mouse_button_pressed(MouseButton::Left) {
+                    let (mx, my) = mouse_position();
+                    let cw = screen_width();
+                    let ch = screen_height();
+                    let bw = 200.0;
+                    let bh = 50.0;
+                    let bx = (cw - bw) / 2.0;
+                    let by = ch * 0.62;
+                    let gap = 60.0;
+
+                    // Play button
+                    if mx >= bx && mx <= bx + bw && my >= by && my <= by + bh {
+                        game.reset();
+                    }
+                    // Tutorial button
+                    if mx >= bx && mx <= bx + bw && my >= by + gap && my <= by + gap + bh {
+                        game.state = GameState::Tutorial;
+                    }
+                    // Quit button
+                    if mx >= bx && mx <= bx + bw && my >= by + gap * 2.0 && my <= by + gap * 2.0 + bh {
+                        std::process::exit(0);
+                    }
+                }
+
+                if is_key_pressed(KeyCode::Escape) {
+                    game.state = GameState::Title;
+                }
+            }
+            GameState::Playing => {
+                // ── Game update ──────────────────────────────────────────
+                if !game.player.dead {
+                    game.update_player(dt);
+
+                    for baby in &mut game.babies {
+                        if baby.flee_timer > 0.0 {
+                            baby.flee_timer -= dt;
+                            baby.vel.y += GRAVITY * dt;
+                            baby.vel.y = baby.vel.y.clamp(-1200.0, 1200.0);
+                            baby.pos.x += baby.vel.x * dt;
+                            baby.pos.y += baby.vel.y * dt;
+
+                            let mut landed = false;
+                            'platforms: for plat in &game.platforms {
+                                if let Some(collision) = baby.rect().intersect(plat.rect())
+                                    && baby.vel.y > 0.0
+                                {
+                                    baby.pos.y -= collision.h;
+                                    baby.vel.y = 0.0;
+                                    baby.floor_y = plat.pos.y;
+                                    landed = true;
+                                    break 'platforms;
+                                }
+                            }
+
+                            if baby.flee_timer <= 0.0 && landed {
+                                let dir = if baby.facing_right { 1.0 } else { -1.0 };
+                                baby.vel.x = dir * BABY_SPEED;
+                                baby.min_x = plat_start_x(baby.pos.x, &game.platforms, baby.floor_y);
+                                baby.max_x = plat_end_x(baby.pos.x, &game.platforms, baby.floor_y);
+                            }
+                        } else {
+                            baby.update(dt);
+
+                            let baby_cx = baby.pos.x + baby.size.x / 2.0;
+                            for poop in &mut game.poops {
+                                if poop.eaten { continue; }
+                                let dist = (baby_cx - poop.pos.x).abs();
+                                if dist < 120.0 {
+                                    if !mq_rand::rand().is_multiple_of(4) {
+                                        let dir = if baby_cx < poop.pos.x { -1.0 } else { 1.0 };
+                                        baby.vel.x = dir * BABY_SPEED * 2.0;
+                                        baby.facing_right = dir > 0.0;
+                                        baby.flee_timer = 2.5;
+                                        baby.vel.y = 0.0;
+                                    } else {
+                                        poop.eaten = true;
+                                    }
+                                    break;
+                                }
+                            }
+                        }
+                    }
+
+                    if is_key_pressed(KeyCode::Q) {
+                        let px = game.player.pos.x + game.player.size.x / 2.0;
+                        let py = game.player.pos.y + game.player.size.y;
+                        game.poops.push(Poop::new(px, py));
+                    }
+                } else if game.death_timer <= 0.0 && is_key_pressed(KeyCode::Space) {
+                    game.reset();
+                }
+
+                if is_key_pressed(KeyCode::R) {
+                    game.reset();
+                }
+            }
+        }
 
         // ── Draw ────────────────────────────────────────────────────────
         game.draw();
