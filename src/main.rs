@@ -377,32 +377,40 @@ fn draw_dog_sprite(cx: f32, cy: f32, p: &Player) {
     let body_cy = 1.0 + body_bob_y;
     let (bx, by) = ptx(body_cx, body_cy);
 
-    // Main body — slightly rounded rectangle
+    // Main body — slightly rounded rectangle (extends from bx-12 to bx+12)
     draw_rectangle(bx - 12.0, by - 6.0, 24.0, 14.0, FUR);
     // Belly highlight
     draw_rectangle(bx - 9.0, by - 2.0, 18.0, 8.0, FUR_LIGHT);
 
+    // ── Neck bridge (connects body to head) ─────────────────────────────
+    // Fills the gap between body right edge (bx+12) and head (bx+8)
+    draw_rectangle(bx + 7.0, by - 7.0, 7.0, 9.0, FUR);
+
     // ── Back legs ───────────────────────────────────────────────────────
     let bl_swing = (leg_phase + 0.5).sin() * 4.0;
     let bl_off = if p.grounded && p.vel.x != 0.0 { bl_swing } else { 0.0 };
-    draw_back_leg(bx - 7.0 + bl_off * 0.3, by + 7.0, p.grounded);
+    draw_back_leg(lx(bx - 7.0 + bl_off * 0.3), by + 7.0, p.grounded, flip);
 
     // ── Tail ────────────────────────────────────────────────────────────
-    let tail_base_x = bx - 12.0;
+    // Tail base is now inset into the body for a connected look
+    let tail_base_x = bx - 10.0;
     let tail_base_y = by - 3.0;
-    let tip_x = tail_base_x + (tail_angle * 0.8 - 0.8).cos() * 8.0;
-    let tip_y = tail_base_y + (tail_angle * 0.8 - 0.8).sin() * 8.0 - 6.0;
-    draw_line(lx(tail_base_x), tail_base_y, lx(tip_x), tip_y, 4.0, FUR);
+    // Rump circle blends tail into body
+    draw_circle(lx(tail_base_x), tail_base_y, 4.0, FUR);
+    let tip_x = tail_base_x + (tail_angle * 0.8 - 0.8).cos() * 9.0;
+    let tip_y = tail_base_y + (tail_angle * 0.8 - 0.8).sin() * 9.0 - 6.0;
+    draw_line(lx(tail_base_x), tail_base_y, lx(tip_x), tip_y, 4.5, FUR);
     // Tail tip (fluff)
-    draw_circle(lx(tip_x), tip_y, 3.0, FUR_LIGHT);
+    draw_circle(lx(tip_x), tip_y, 3.5, FUR_LIGHT);
 
     // ── Front legs ──────────────────────────────────────────────────────
     let fl_swing = (leg_phase).sin() * 4.0;
     let fl_off = if p.grounded && p.vel.x != 0.0 { fl_swing } else { 0.0 };
-    draw_front_leg(bx + 7.0 + fl_off * 0.3, by + 7.0, p.grounded);
+    draw_front_leg(lx(bx + 6.5 + fl_off * 0.3), by + 7.0, p.grounded, flip);
 
     // ── Head ────────────────────────────────────────────────────────────
-    let head_x = bx + 11.0;
+    // Head overlaps the body more generously (was bx + 11, now bx + 8)
+    let head_x = bx + 8.0;
     let head_y = by - 4.0;
     let (hx, hy) = ptx(head_x, head_y);
 
@@ -423,10 +431,10 @@ fn draw_dog_sprite(cx: f32, cy: f32, p: &Player) {
         EAR_COLOR,
     );
 
-    // Head circle
+    // Head circle (radius 7, so spans bx+1 to bx+15 — well inside body)
     draw_circle(hx, hy, 7.0, FUR);
     // Snout
-    draw_circle(hx + 3.0, hy + 2.0, 4.0, FUR_LIGHT);
+    draw_circle(hx + 4.0, hy + 2.0, 4.0, FUR_LIGHT);
 
     // Eyes
     draw_circle(hx + 1.0, hy - 1.0, 2.5, EYE_WHITE);
@@ -458,7 +466,7 @@ fn draw_dog_sprite(cx: f32, cy: f32, p: &Player) {
 }
 
 /// Draw a front leg at the given world position.
-fn draw_front_leg(x: f32, y: f32, grounded: bool) {
+fn draw_front_leg(x: f32, y: f32, grounded: bool, _flip: f32) {
     if grounded {
         draw_rectangle(x - 2.0, y, 4.0, 6.0, FUR);
         draw_rectangle(x - 3.0, y + 5.0, 6.0, 2.5, FUR_DARK); // paw
@@ -470,7 +478,7 @@ fn draw_front_leg(x: f32, y: f32, grounded: bool) {
 }
 
 /// Draw a back leg at the given world position.
-fn draw_back_leg(x: f32, y: f32, grounded: bool) {
+fn draw_back_leg(x: f32, y: f32, grounded: bool, _flip: f32) {
     if grounded {
         draw_rectangle(x - 2.0, y, 4.0, 6.0, FUR_DARK);
         draw_rectangle(x - 3.0, y + 5.0, 6.0, 2.5, FUR_DARK); // paw
