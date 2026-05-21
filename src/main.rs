@@ -277,7 +277,7 @@ impl Game {
 
     fn die(&mut self) {
         self.player.dead = true;
-        self.death_timer = 1.0;
+        self.death_timer = 0.3;
         let px = self.player.pos.x + self.player.size.x / 2.0;
         let py = self.player.pos.y + self.player.size.y / 2.0;
         for _ in 0..30 {
