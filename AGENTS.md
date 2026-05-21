@@ -27,7 +27,8 @@ The entire game is a single file. The major sections are:
 - **`Player`** — position, velocity, animation state (`walk_time`, `dead`, `grounded`), coyote + jump buffer counters
 - **`Platform`** — positioned rectangle with `rect()` helper
 - **`Spike`** — positioned rectangle with `rect()` helper and `draw()` method
-- **`Baby`** — position, velocity, patrol bounds (`min_x`, `max_x`), `crawl_time` for animation
+- **`Baby`** — position, velocity, patrol bounds (`min_x`, `max_x`), `crawl_time` for animation, `flee_timer` for poop-flee behaviour
+- **`Poop`** — position, `eaten` flag for when a baby eats it
 
 ### Game state (`struct Game`)
 - Holds `player`, `platforms: Vec<Platform>`, `spikes: Vec<Spike>`, `babies: Vec<Baby>`

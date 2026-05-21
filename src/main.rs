@@ -1,4 +1,5 @@
 use macroquad::prelude::*;
+use macroquad::rand as mq_rand;
 
 // ── Constants ────────────────────────────────────────────────────────────────
 
@@ -132,6 +133,19 @@ impl Spike {
     }
 }
 
+/// A pile of poop the dog can leave. Babies react to it.
+#[derive(Debug, Clone, PartialEq)]
+struct Poop {
+    pos: Vec2,
+    eaten: bool,
+}
+
+impl Poop {
+    fn new(x: f32, y: f32) -> Self {
+        Self { pos: vec2(x, y), eaten: false }
+    }
+}
+
 /// A crawling baby enemy that patrols back and forth on a platform.
 #[derive(Debug, Clone, PartialEq)]
 struct Baby {
@@ -147,6 +161,7 @@ struct Baby {
     floor_y: f32,
     /// Time accumulator for crawl animation.
     crawl_time: f32,
+    flee_timer: f32,
 }
 
 impl Baby {
@@ -160,6 +175,7 @@ impl Baby {
             max_x: x + patrol_range / 2.0,
             floor_y,
             crawl_time: 0.0,
+            flee_timer: 0.0,
         }
     }
 
@@ -170,18 +186,28 @@ impl Baby {
     fn update(&mut self, dt: f32) {
         self.crawl_time += dt;
 
-        // Move horizontally
-        self.pos.x += self.vel.x * dt;
+        if self.flee_timer > 0.0 {
+            // Fleeing from a poop — run double speed, ignore patrol bounds
+            self.flee_timer -= dt;
+            self.pos.x += self.vel.x * dt;
+            if self.flee_timer <= 0.0 {
+                // Resume normal patrol
+                let dir = if self.facing_right { 1.0 } else { -1.0 };
+                self.vel.x = dir * BABY_SPEED;
+            }
+        } else {
+            // Normal patrol
+            self.pos.x += self.vel.x * dt;
 
-        // Reverse at patrol bounds
-        if self.pos.x <= self.min_x {
-            self.pos.x = self.min_x;
-            self.vel.x = BABY_SPEED;
-            self.facing_right = true;
-        } else if self.pos.x + self.size.x >= self.max_x {
-            self.pos.x = self.max_x - self.size.x;
-            self.vel.x = -BABY_SPEED;
-            self.facing_right = false;
+            if self.pos.x <= self.min_x {
+                self.pos.x = self.min_x;
+                self.vel.x = BABY_SPEED;
+                self.facing_right = true;
+            } else if self.pos.x + self.size.x >= self.max_x {
+                self.pos.x = self.max_x - self.size.x;
+                self.vel.x = -BABY_SPEED;
+                self.facing_right = false;
+            }
         }
 
         // Stay on the floor
@@ -196,6 +222,7 @@ struct Game {
     platforms: Vec<Platform>,
     spikes: Vec<Spike>,
     babies: Vec<Baby>,
+    poops: Vec<Poop>,
 }
 
 impl Game {
@@ -238,6 +265,7 @@ impl Game {
             platforms,
             spikes,
             babies,
+            poops: vec![],
         }
     }
 
@@ -386,6 +414,15 @@ impl Game {
             draw_baby_sprite(bx, by, baby);
         }
 
+        // ── Poops ──────────────────────────────────────────────────────
+        for poop in &self.poops {
+            if !poop.eaten {
+                let sx = poop.pos.x - cam.x;
+                let sy = poop.pos.y - cam.y;
+                draw_poop_sprite(sx, sy);
+            }
+        }
+
         // ── Player ──────────────────────────────────────────────────────
         if !self.player.dead {
             let psx = self.player.pos.x + self.player.size.x / 2.0 - cam.x;
@@ -396,7 +433,7 @@ impl Game {
         // ── HUD ─────────────────────────────────────────────────────────
         let hud_text = format!("x: {:.0}  y: {:.0}  grounded: {}", self.player.pos.x, self.player.pos.y, self.player.grounded);
         draw_text(&hud_text, 12.0, 28.0, 20.0, Color::from_hex(0xaaaaaa));
-        draw_text("Arrow keys / WASD to move, Space to jump  |  R to reset", 12.0, screen_height() - 12.0, 16.0, Color::from_hex(0x666666));
+        draw_text("Arrow keys / WASD to move, Space to jump  |  E to poop  |  R to reset", 12.0, screen_height() - 12.0, 16.0, Color::from_hex(0x666666));
 
         // ── Death overlay ───────────────────────────────────────────────
         if self.player.dead {
@@ -619,6 +656,19 @@ fn draw_baby_sprite(cx: f32, cy: f32, b: &Baby) {
     draw_circle(head_x + 1.0, head_y + 4.0, 1.2, Color::from_hex(0xcc3333));
 }
 
+// ── Poop sprite drawing ─────────────────────────────────────────────────────
+
+/// Draw a little pile of poop at the given position.
+fn draw_poop_sprite(x: f32, y: f32) {
+    // Brown mound made of overlapping circles
+    draw_circle(x, y, 5.0, Color::from_hex(0x5c3a1e));
+    draw_circle(x - 3.0, y - 1.0, 4.0, Color::from_hex(0x5c3a1e));
+    draw_circle(x + 3.0, y - 1.0, 4.0, Color::from_hex(0x5c3a1e));
+    // Highlight on top
+    draw_circle(x, y - 2.0, 3.0, Color::from_hex(0x7a4e28));
+    draw_circle(x - 1.0, y - 3.0, 2.0, Color::from_hex(0x8c5c30));
+}
+
 // ── Entry point ──────────────────────────────────────────────────────────────
 
 #[macroquad::main("Platformer")]
@@ -633,6 +683,40 @@ async fn main() {
             game.update_player(dt);
             for baby in &mut game.babies {
                 baby.update(dt);
+            }
+
+            // Poop interaction: babies detect and react to poops
+            for baby in &mut game.babies {
+                if baby.flee_timer > 0.0 {
+                    continue;
+                }
+                let baby_cx = baby.pos.x + baby.size.x / 2.0;
+                for poop in &mut game.poops {
+                    if poop.eaten {
+                        continue;
+                    }
+                    let dist = (baby_cx - poop.pos.x).abs();
+                    if dist < 120.0 {
+                        if !mq_rand::rand().is_multiple_of(4) {
+                            // 75%: flee away from the poop
+                            let dir = if baby_cx < poop.pos.x { -1.0 } else { 1.0 };
+                            baby.vel.x = dir * BABY_SPEED * 2.0;
+                            baby.facing_right = dir > 0.0;
+                            baby.flee_timer = 2.5;
+                        } else {
+                            // 25%: eat it
+                            poop.eaten = true;
+                        }
+                        break;
+                    }
+                }
+            }
+
+            // Spawn a poop when pressing E
+            if is_key_pressed(KeyCode::E) {
+                let px = game.player.pos.x + game.player.size.x / 2.0;
+                let py = game.player.pos.y + game.player.size.y;
+                game.poops.push(Poop::new(px, py));
             }
         } else if is_key_pressed(KeyCode::Space) {
             game.reset();
