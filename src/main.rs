@@ -165,14 +165,14 @@ struct Baby {
 }
 
 impl Baby {
-    fn new(x: f32, floor_y: f32, patrol_range: f32) -> Self {
+    fn new(x: f32, floor_y: f32, min_x: f32, max_x: f32) -> Self {
         Self {
             pos: vec2(x, floor_y - 18.0),
             vel: vec2(BABY_SPEED, 0.0),
             size: vec2(22.0, 18.0),
             facing_right: true,
-            min_x: x - patrol_range / 2.0,
-            max_x: x + patrol_range / 2.0,
+            min_x,
+            max_x,
             floor_y,
             crawl_time: 0.0,
             flee_timer: 0.0,
@@ -247,14 +247,14 @@ impl Game {
             Spike { pos: vec2(2200.0, spike_y), width: 200.0, height: SPIKE_HEIGHT },
         ];
 
-        // Babies patrol across various platforms
+        // Babies patrol the full width of their platform
         let babies = vec![
-            Baby::new(550.0, floor_y, 450.0),
-            Baby::new(290.0, screen_height() - 130.0, 80.0),
-            Baby::new(490.0, screen_height() - 240.0, 100.0),
-            Baby::new(250.0, floor_y, 120.0),
-            Baby::new(700.0, floor_y, 100.0),
-            Baby::new(1950.0, floor_y, 200.0),
+            Baby::new(550.0, floor_y, 0.0, 800.0),
+            Baby::new(290.0, screen_height() - 130.0, 220.0, 360.0),
+            Baby::new(490.0, screen_height() - 240.0, 420.0, 560.0),
+            Baby::new(250.0, floor_y, 0.0, 800.0),
+            Baby::new(700.0, floor_y, 0.0, 800.0),
+            Baby::new(1950.0, floor_y, 1800.0, 2200.0),
         ];
 
         let start_x = 80.0;
