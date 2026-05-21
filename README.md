@@ -27,21 +27,18 @@ Requires Rust. Built with `macroquad`.
 
 ## Release builds
 
-After every commit a `post-commit` hook automatically compiles an
-optimised binary and drops it into `release/`. To enable it:
+Every push to `main` builds optimised executables for macOS and
+Windows via GitHub Actions. The binaries are available as
+build artifacts on the Actions tab.
+
+To create a proper release with downloadable binaries, push a tag:
 
 ```sh
-git config core.hooksPath hooks
+git tag v1.0.0
+git push --tags
 ```
 
-On macOS the native binary is produced automatically. Windows
-cross-compilation requires the mingw target:
-
-```sh
-rustup target add x86_64-pc-windows-gnu
-# macOS users also need:
-# brew install mingw-w64
-```
+This triggers a GitHub Release with the binaries attached.
 
 ## The experiment
 
