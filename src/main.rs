@@ -224,9 +224,9 @@ impl Game {
         let babies = vec![
             Baby::new(550.0, floor_y, 450.0),
             Baby::new(490.0, screen_height() - 130.0, 100.0),
-            Baby::new(870.0, screen_height() - 180.0, 90.0),
-            Baby::new(1350.0, screen_height() - 400.0, 200.0),
-            Baby::new(1630.0, screen_height() - 300.0, 60.0),
+            Baby::new(490.0, screen_height() - 240.0, 100.0),
+            Baby::new(250.0, floor_y, 120.0),
+            Baby::new(700.0, floor_y, 100.0),
             Baby::new(1950.0, floor_y, 200.0),
         ];
 
