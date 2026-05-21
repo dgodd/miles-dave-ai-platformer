@@ -510,7 +510,7 @@ impl Game {
 
         // Title text
         let title_font_size = 72.0;
-        let title = "PLATFORMER";
+        let title = "DOG ADVENTURE";
         let ts = measure_text(title, None, title_font_size as _, 1.0);
         draw_text(title, (cw - ts.width) / 2.0, ch * 0.18, title_font_size, Color::from_hex(0xe94560));
 
@@ -854,7 +854,7 @@ fn plat_end_x(x: f32, platforms: &[Platform], floor_y: f32) -> f32 {
 
 // ── Entry point ──────────────────────────────────────────────────────────────
 
-#[macroquad::main("Platformer")]
+#[macroquad::main("Dog Adventure")]
 async fn main() {
     let mut game = Game::new();
 
