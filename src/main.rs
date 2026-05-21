@@ -96,8 +96,6 @@ impl Spike {
         let tooth_count = (self.width / SPIKE_TOOTH_WIDTH).ceil() as usize;
         let spacing = self.width / tooth_count as f32;
 
-        draw_rectangle(sx, sy, self.width, self.height, Color::from_hex(0x0d0d1a));
-
         for i in 0..tooth_count {
             let cx = sx + i as f32 * spacing + spacing / 2.0;
             let left = cx - spacing / 2.0;
