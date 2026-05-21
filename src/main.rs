@@ -853,36 +853,36 @@ fn plat_end_x(x: f32, platforms: &[Platform], floor_y: f32) -> f32 {
 }
 
 
-/// Generate RGBA pixel data for a 16×16 pixel-art dog face icon.
+/// Generate RGBA pixel data for a 16×16 pixel-art golden tennis ball.
 /// This is the source art; larger sizes are scaled from it.
-fn dog_icon_16() -> [u8; 1024] {
+fn tennis_ball_icon_16() -> [u8; 1024] {
     let mut px = [0u8; 1024];
+    // '#' = golden yellow, 'L' = lighter highlight, 'O' = white seam, '.' = transparent
     let art: [&str; 16] = [
         "................",
-        "................",
-        "...#####..##....",
-        "..##########....",
-        "..##########....",
-        ".############..",
-        ".####..###.####.",
-        ".###O#.###O#.##.",
-        ".###X#.###X#.##.",
-        ".####..###.####.",
-        ".############..",
-        "..##########....",
-        "..###....###....",
-        "...@.#..#.@.....",
-        "................",
+        ".....#####......",
+        "...#########....",
+        "..###########...",
+        ".###LLLLL####..",
+        ".###LLLLL#####.",
+        ".####LLLL#####.",
+        "#######O#######",
+        "#######O#######",
+        ".#####O########.",
+        ".####OOOO#####.",
+        "..###OOOO####..",
+        "...#########...",
+        "....#######....",
+        ".....#####.....",
         "................",
     ];
     for (y, row) in art.iter().enumerate() {
         for (x, ch) in row.bytes().enumerate() {
             let i = (y * 16 + x) * 4;
             match ch {
-                b'#' => { px[i]=186; px[i+1]=142; px[i+2]=55;  px[i+3]=255; }
-                b'O' => { px[i]=245; px[i+1]=245; px[i+2]=245; px[i+3]=255; }
-                b'X' => { px[i]=25;  px[i+1]=18;  px[i+2]=8;   px[i+3]=255; }
-                b'@' => { px[i]=210; px[i+1]=110; px[i+2]=110; px[i+3]=255; }
+                b'#' => { px[i]=215; px[i+1]=182; px[i+2]=50;  px[i+3]=255; }
+                b'L' => { px[i]=235; px[i+1]=208; px[i+2]=80;  px[i+3]=255; }
+                b'O' => { px[i]=250; px[i+1]=250; px[i+2]=250; px[i+3]=255; }
                 _   => {}
             }
         }
@@ -908,7 +908,7 @@ fn upscale_icon(src: &[u8; 1024], new_size: usize) -> Vec<u8> {
 }
 
 fn window_conf() -> Conf {
-    let small = dog_icon_16();
+    let small = tennis_ball_icon_16();
     // 32×32 and 64×64 are nearest-neighbour upscales of the 16×16 design
     let medium_arr: [u8; 4096] = {
         let v = upscale_icon(&small, 32);
