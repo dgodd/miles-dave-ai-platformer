@@ -222,6 +222,7 @@ struct Game {
     babies: Vec<Baby>,
     poops: Vec<Poop>,
     particles: Vec<Particle>,
+    death_timer: f32,
 }
 
 impl Game {
@@ -266,6 +267,7 @@ impl Game {
             babies,
             poops: vec![],
             particles: vec![],
+            death_timer: 0.0,
         }
     }
 
@@ -275,6 +277,7 @@ impl Game {
 
     fn die(&mut self) {
         self.player.dead = true;
+        self.death_timer = 1.0;
         let px = self.player.pos.x + self.player.size.x / 2.0;
         let py = self.player.pos.y + self.player.size.y / 2.0;
         for _ in 0..30 {
@@ -462,7 +465,7 @@ impl Game {
         draw_text("Arrow keys / WASD to move, Space to jump  |  Q to poop  |  R to reset", 12.0, screen_height() - 12.0, 16.0, Color::from_hex(0x666666));
 
         // ── Death overlay ───────────────────────────────────────────────
-        if self.player.dead {
+        if self.player.dead && self.death_timer <= 0.0 {
             draw_rectangle(0.0, 0.0, screen_width(), screen_height(),
                            Color::from_rgba(0, 0, 0, 180));
 
@@ -801,7 +804,7 @@ async fn main() {
                 let py = game.player.pos.y + game.player.size.y;
                 game.poops.push(Poop::new(px, py));
             }
-        } else if is_key_pressed(KeyCode::Space) {
+        } else if game.death_timer <= 0.0 && is_key_pressed(KeyCode::Space) {
             game.reset();
         }
 
@@ -809,13 +812,15 @@ async fn main() {
             game.reset();
         }
 
-        // ── Update particles (always, even during death screen) ─────────
+        // ── Update particles and death timer (always) ─────────────────
+        if game.death_timer > 0.0 {
+            game.death_timer -= dt;
+        }
         game.particles.retain_mut(|p| {
             p.lifetime -= dt;
             if p.lifetime <= 0.0 {
                 return false;
             }
-            p.vel.y += GRAVITY * 1.5 * dt;
             p.pos += p.vel * dt;
             true
         });
