@@ -422,7 +422,7 @@ impl Game {
         // ── HUD ─────────────────────────────────────────────────────────
         let hud_text = format!("x: {:.0}  y: {:.0}  grounded: {}", self.player.pos.x, self.player.pos.y, self.player.grounded);
         draw_text(&hud_text, 12.0, 28.0, 20.0, Color::from_hex(0xaaaaaa));
-        draw_text("Arrow keys / WASD to move, Space to jump  |  E to poop  |  R to reset", 12.0, screen_height() - 12.0, 16.0, Color::from_hex(0x666666));
+        draw_text("Arrow keys / WASD to move, Space to jump  |  Q to poop  |  R to reset", 12.0, screen_height() - 12.0, 16.0, Color::from_hex(0x666666));
 
         // ── Death overlay ───────────────────────────────────────────────
         if self.player.dead {
@@ -758,8 +758,8 @@ async fn main() {
                 }
             }
 
-            // Spawn a poop when pressing E
-            if is_key_pressed(KeyCode::E) {
+            // Spawn a poop when pressing Q
+            if is_key_pressed(KeyCode::Q) {
                 let px = game.player.pos.x + game.player.size.x / 2.0;
                 let py = game.player.pos.y + game.player.size.y;
                 game.poops.push(Poop::new(px, py));

@@ -15,7 +15,7 @@ Jump and run across platforms, avoid spike pits, and dodge crawling babies. All 
 | A / Left | Move left |
 | D / Right | Move right |
 | Space / W / Up | Jump |
-| E | Drop a poop |
+| Q | Drop a poop |
 | R | Reset |
 
 ## Running it
