@@ -186,28 +186,17 @@ impl Baby {
     fn update(&mut self, dt: f32) {
         self.crawl_time += dt;
 
-        if self.flee_timer > 0.0 {
-            // Fleeing from a poop — run double speed, ignore patrol bounds
-            self.flee_timer -= dt;
-            self.pos.x += self.vel.x * dt;
-            if self.flee_timer <= 0.0 {
-                // Resume normal patrol
-                let dir = if self.facing_right { 1.0 } else { -1.0 };
-                self.vel.x = dir * BABY_SPEED;
-            }
-        } else {
-            // Normal patrol
-            self.pos.x += self.vel.x * dt;
+        // Normal patrol (only runs when not fleeing)
+        self.pos.x += self.vel.x * dt;
 
-            if self.pos.x <= self.min_x {
-                self.pos.x = self.min_x;
-                self.vel.x = BABY_SPEED;
-                self.facing_right = true;
-            } else if self.pos.x + self.size.x >= self.max_x {
-                self.pos.x = self.max_x - self.size.x;
-                self.vel.x = -BABY_SPEED;
-                self.facing_right = false;
-            }
+        if self.pos.x <= self.min_x {
+            self.pos.x = self.min_x;
+            self.vel.x = BABY_SPEED;
+            self.facing_right = true;
+        } else if self.pos.x + self.size.x >= self.max_x {
+            self.pos.x = self.max_x - self.size.x;
+            self.vel.x = -BABY_SPEED;
+            self.facing_right = false;
         }
 
         // Stay on the floor
@@ -669,6 +658,31 @@ fn draw_poop_sprite(x: f32, y: f32) {
     draw_circle(x - 1.0, y - 3.0, 2.0, Color::from_hex(0x8c5c30));
 }
 
+
+// ── Platform helpers ─────────────────────────────────────────────────────────
+
+/// Find the left edge of the platform whose top is at  and whose
+/// span contains . Returns  as a fallback if no match is found.
+fn plat_start_x(x: f32, platforms: &[Platform], floor_y: f32) -> f32 {
+    for p in platforms {
+        if (p.pos.y - floor_y).abs() < 2.0 && x >= p.pos.x && x <= p.pos.x + p.size.x {
+            return p.pos.x;
+        }
+    }
+    (x - 200.0).max(0.0)
+}
+
+/// Find the right edge of the platform whose top is at  and whose
+/// span contains . Returns  as a fallback if no match is found.
+fn plat_end_x(x: f32, platforms: &[Platform], floor_y: f32) -> f32 {
+    for p in platforms {
+        if (p.pos.y - floor_y).abs() < 2.0 && x >= p.pos.x && x <= p.pos.x + p.size.x {
+            return p.pos.x + p.size.x;
+        }
+    }
+    x + 200.0
+}
+
 // ── Entry point ──────────────────────────────────────────────────────────────
 
 #[macroquad::main("Platformer")]
@@ -681,33 +695,65 @@ async fn main() {
         // ── Update ──────────────────────────────────────────────────────
         if !game.player.dead {
             game.update_player(dt);
-            for baby in &mut game.babies {
-                baby.update(dt);
-            }
 
-            // Poop interaction: babies detect and react to poops
+            // Update babies: flee physics (with gravity + platform collision)
+            // or normal patrol, plus poop detection
             for baby in &mut game.babies {
                 if baby.flee_timer > 0.0 {
-                    continue;
-                }
-                let baby_cx = baby.pos.x + baby.size.x / 2.0;
-                for poop in &mut game.poops {
-                    if poop.eaten {
-                        continue;
-                    }
-                    let dist = (baby_cx - poop.pos.x).abs();
-                    if dist < 120.0 {
-                        if !mq_rand::rand().is_multiple_of(4) {
-                            // 75%: flee away from the poop
-                            let dir = if baby_cx < poop.pos.x { -1.0 } else { 1.0 };
-                            baby.vel.x = dir * BABY_SPEED * 2.0;
-                            baby.facing_right = dir > 0.0;
-                            baby.flee_timer = 2.5;
-                        } else {
-                            // 25%: eat it
-                            poop.eaten = true;
+                    // Fleeing: gravity, movement, platform collision
+                    baby.flee_timer -= dt;
+                    baby.vel.y += GRAVITY * dt;
+                    baby.vel.y = baby.vel.y.clamp(-1200.0, 1200.0);
+                    baby.pos.x += baby.vel.x * dt;
+                    baby.pos.y += baby.vel.y * dt;
+
+                    // Check landing on any platform
+                    let mut landed = false;
+                    'platforms: for plat in &game.platforms {
+                        if let Some(collision) = baby.rect().intersect(plat.rect())
+                            && baby.vel.y > 0.0
+                        {
+                            // Landed on top
+                            baby.pos.y -= collision.h;
+                            baby.vel.y = 0.0;
+                            baby.floor_y = plat.pos.y;
+                            landed = true;
+                            break 'platforms;
                         }
-                        break;
+                    }
+
+                    if baby.flee_timer <= 0.0 && landed {
+                        // Resume normal patrol on the platform we landed on
+                        let dir = if baby.facing_right { 1.0 } else { -1.0 };
+                        baby.vel.x = dir * BABY_SPEED;
+                        baby.min_x = plat_start_x(baby.pos.x, &game.platforms, baby.floor_y);
+                        baby.max_x = plat_end_x(baby.pos.x, &game.platforms, baby.floor_y);
+                    }
+                } else {
+                    // Normal patrol
+                    baby.update(dt);
+
+                    // Check for nearby poops
+                    let baby_cx = baby.pos.x + baby.size.x / 2.0;
+                    for poop in &mut game.poops {
+                        if poop.eaten {
+                            continue;
+                        }
+                        let dist = (baby_cx - poop.pos.x).abs();
+                        if dist < 120.0 {
+                            if !mq_rand::rand().is_multiple_of(4) {
+                                // 75%: flee away from the poop
+                                let dir = if baby_cx < poop.pos.x { -1.0 } else { 1.0 };
+                                baby.vel.x = dir * BABY_SPEED * 2.0;
+                                baby.facing_right = dir > 0.0;
+                                baby.flee_timer = 2.5;
+                                baby.vel.y = 0.0;
+                            } else {
+                                // 25%: eat it
+                                poop.eaten = true;
+                            }
+                            break;
+                        }
                     }
                 }
             }
