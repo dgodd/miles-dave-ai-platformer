@@ -853,56 +853,79 @@ fn plat_end_x(x: f32, platforms: &[Platform], floor_y: f32) -> f32 {
 }
 
 
-/// Generate a solid RGBA pixel buffer of the given size filled with
-/// a golden paw-print pattern. Returns a Vec<u8> of (w * h * 4) bytes.
-fn make_icon_pixels(w: usize, h: usize) -> Vec<u8> {
-    let mut px = vec![0u8; w * h * 4];
-    // Draw a simple paw print: '0' = filled pixel, '.' = transparent
-    let paw = [
-        "...000...00.....",
-        "..0...0.0.0....",
-        ".0.....0...0...",
-        ".0.....00..0...",
-        ".0.....0...0...",
-        "..0...0.0.0....",
-        "...000...00.....",
-        ".........00.....",
-        ".........00.....",
-        ".......00000....",
-        ".......0...0...",
-        ".......0...0...",
-        "......000.000..",
-        ".....00.....00.",
-        "....00.......00",
-        "...00.........0",
+/// Generate RGBA pixel data for a 16×16 pixel-art dog face icon.
+/// This is the source art; larger sizes are scaled from it.
+fn dog_icon_16() -> [u8; 1024] {
+    let mut px = [0u8; 1024];
+    // '#' = brown fur, 'O' = white eye, 'X' = black pupil, '@' = pink tongue, '.' = transparent
+    let art: [&str; 16] = [
+        "................",
+        "..####..####....",
+        ".#############..",
+        ".##############.",
+        "################",
+        "####.####.######",
+        "##O#.####.#O#.##",
+        "##X#.####.#X#.##",
+        "##O#.####.#O#.##",
+        "################",
+        "################",
+        ".##############.",
+        "..############..",
+        "...##@@##@@##...",
+        "....##@@##@@....",
+        "................",
     ];
-    for y in 0..h.min(16) {
-        for x in 0..w.min(16) {
-            if y < paw.len() && x < paw[y].len() && paw[y].as_bytes()[x] == b'0' {
-                let i = (y * w + x) * 4;
-                px[i] = 196;
-                px[i+1] = 150;
-                px[i+2] = 60;
-                px[i+3] = 255;
+    for (y, row) in art.iter().enumerate() {
+        for (x, ch) in row.bytes().enumerate() {
+            let i = (y * 16 + x) * 4;
+            match ch {
+                b'#' => { px[i]=196; px[i+1]=150; px[i+2]=60;  px[i+3]=255; }
+                b'O' => { px[i]=240; px[i+1]=240; px[i+2]=240; px[i+3]=255; }
+                b'X' => { px[i]=30;  px[i+1]=20;  px[i+2]=10;  px[i+3]=255; }
+                b'@' => { px[i]=220; px[i+1]=120; px[i+2]=120; px[i+3]=255; }
+                _   => { /* transparent */ }
             }
         }
     }
     px
 }
 
-fn window_conf() -> Conf {
-    fn to_arr<const N: usize>(v: &[u8]) -> [u8; N] {
-        let mut arr = [0u8; N];
-        let len = v.len().min(N);
-        arr[..len].copy_from_slice(&v[..len]);
-        arr
+/// Nearest-neighbour upscale a 16×16 RGBA pixel buffer to a larger square size.
+fn upscale_icon(src: &[u8; 1024], new_size: usize) -> Vec<u8> {
+    let scale = new_size / 16;
+    let mut dst = vec![0u8; new_size * new_size * 4];
+    for y in 0..new_size {
+        for x in 0..new_size {
+            let si = ((y / scale) * 16 + (x / scale)) * 4;
+            let di = (y * new_size + x) * 4;
+            dst[di]     = src[si];
+            dst[di + 1] = src[si + 1];
+            dst[di + 2] = src[si + 2];
+            dst[di + 3] = src[si + 3];
+        }
     }
+    dst
+}
+
+fn window_conf() -> Conf {
+    let small = dog_icon_16();
+    // 32×32 and 64×64 are nearest-neighbour upscales of the 16×16 design
+    let medium_arr: [u8; 4096] = {
+        let v = upscale_icon(&small, 32);
+        std::array::from_fn(|i| v[i])
+    };
+    let big_arr: [u8; 16384] = {
+        let v = upscale_icon(&small, 64);
+        std::array::from_fn(|i| v[i])
+    };
+
     Conf {
         window_title: String::from("Dog Adventure"),
         icon: Some(miniquad::conf::Icon {
-            small: to_arr(&make_icon_pixels(16, 16)),
-            medium: to_arr(&make_icon_pixels(32, 32)),
-            big: to_arr(&make_icon_pixels(64, 64)),
+            small,
+            medium: medium_arr,
+            big: big_arr,
         }),
         ..Default::default()
     }
