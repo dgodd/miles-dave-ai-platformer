@@ -576,8 +576,8 @@ impl Game {
     fn draw_title_screen(&self) {
         let cw = screen_width();
         let ch = screen_height();
-        let time = get_time();
-        let rot_angle = ((time as f32) * 1.5).sin() * std::f32::consts::FRAC_PI_4;
+        let time = get_time() as f32;
+        let bob_offset = (time * 1.5).sin() * 6.0;
 
         // ── Golden particles (behind dog and ball) ─────────────────────
         for p in &self.particles {
@@ -599,38 +599,16 @@ impl Game {
         let ss = measure_text(sub, None, sub_font as _, 1.0);
         draw_text(sub, (cw - ss.width) / 2.0, ch * 0.28, sub_font, Color::from_hex(0xaaaaaa));
 
-        // Dog sprite (left of centre) — oscillating rotation
+        // Dog sprite (left of centre) — gentle bounce
         let dog_cx = cw * 0.35;
-        let dog_cy = ch * 0.48;
+        let dog_cy = ch * 0.48 + bob_offset;
         let dummy = Player::new(0.0, 0.0);
-        {
-            let cam = Camera2D {
-                target: vec2(dog_cx, dog_cy),
-                offset: vec2(dog_cx, dog_cy),
-                rotation: rot_angle,
-                zoom: vec2(1.0, 1.0),
-                ..Default::default()
-            };
-            set_camera(&cam);
-            draw_dog_sprite(dog_cx, dog_cy, &dummy, DOG_SCALE * 3.2);
-            set_default_camera();
-        }
+        draw_dog_sprite(dog_cx, dog_cy, &dummy, DOG_SCALE * 3.2);
 
-        // Tennis ball (right of centre) — oscillating rotation
+        // Tennis ball (right of centre) — gentle bounce (opposite phase)
         let ball_cx = cw * 0.65;
-        let ball_cy = ch * 0.48;
-        {
-            let cam = Camera2D {
-                target: vec2(ball_cx, ball_cy),
-                offset: vec2(ball_cx, ball_cy),
-                rotation: -rot_angle,
-                zoom: vec2(1.0, 1.0),
-                ..Default::default()
-            };
-            set_camera(&cam);
-            draw_golden_tennis_ball(ball_cx, ball_cy, 8.0 * DOG_SCALE * 3.2 * 1.1);
-            set_default_camera();
-        }
+        let ball_cy = ch * 0.48 - bob_offset;
+        draw_golden_tennis_ball(ball_cx, ball_cy, 8.0 * DOG_SCALE * 3.2 * 1.1);
 
         // Buttons
         let bw = 220.0;
