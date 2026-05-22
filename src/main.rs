@@ -521,7 +521,7 @@ impl Game {
         if !self.player.dead {
             let psx = self.player.pos.x + self.player.size.x / 2.0 - cam.x;
             let psy = self.player.pos.y + self.player.size.y / 2.0 - cam.y;
-            draw_dog_sprite(psx, psy, &self.player);
+            draw_dog_sprite(psx, psy, &self.player, DOG_SCALE);
         }
 
         // ── Particles ──────────────────────────────────────────────────
@@ -593,12 +593,12 @@ impl Game {
         let dog_cx = cw * 0.35;
         let dog_cy = ch * 0.48;
         let dummy = Player::new(0.0, 0.0);
-        draw_dog_sprite(dog_cx, dog_cy, &dummy);
+        draw_dog_sprite(dog_cx, dog_cy, &dummy, DOG_SCALE * 2.0);
 
         // Tennis ball (right of centre)
         let ball_cx = cw * 0.65;
         let ball_cy = ch * 0.48;
-        draw_golden_tennis_ball(ball_cx, ball_cy, 24.0);
+        draw_golden_tennis_ball(ball_cx, ball_cy, 8.0 * DOG_SCALE * 2.0);
 
         // Buttons
         let bw = 220.0;
@@ -686,10 +686,9 @@ fn is_mouse_over(x: f32, y: f32, w: f32, h: f32) -> bool {
 
 // ── Dog sprite drawing ───────────────────────────────────────────────────────
 
-fn draw_dog_sprite(cx: f32, cy: f32, p: &Player) {
+fn draw_dog_sprite(cx: f32, cy: f32, p: &Player, s: f32) {
     let flip = if p.facing_right { 1.0 } else { -1.0 };
     let t = p.walk_time;
-    let s = DOG_SCALE;
 
     let (leg_phase, body_bob_x, body_bob_y, tail_angle, ear_tilt, tongue_out);
 
