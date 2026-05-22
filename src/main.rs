@@ -157,6 +157,7 @@ struct Particle {
     vel: Vec2,
     lifetime: f32,
     size: f32,
+    color_override: Option<Color>,
 }
 
 /// A crawling baby enemy that patrols back and forth on a platform.
@@ -219,6 +220,30 @@ impl Baby {
 
 // ── Game state ───────────────────────────────────────────────────────────────
 
+/// The goal tennis ball the dog must fetch to complete the level.
+#[derive(Debug, Clone, PartialEq)]
+struct GoalBall {
+    pos: Vec2,
+    vel: Vec2,
+    color: Color,
+    collected: bool,
+}
+
+impl GoalBall {
+    fn new(x: f32, y: f32, color: Color) -> Self {
+        Self {
+            pos: vec2(x, y),
+            vel: vec2(100.0, -200.0),
+            color,
+            collected: false,
+        }
+    }
+
+    fn rect(&self) -> Rect {
+        Rect::new(self.pos.x - 8.0, self.pos.y - 8.0, 16.0, 16.0)
+    }
+}
+
 #[derive(Debug, Clone, PartialEq)]
 enum GameState {
     Title,
@@ -235,6 +260,9 @@ struct Game {
     particles: Vec<Particle>,
     death_timer: f32,
     state: GameState,
+    goal_ball: Option<GoalBall>,
+    level_complete: bool,
+    complete_timer: f32,
 }
 
 impl Game {
@@ -281,12 +309,17 @@ impl Game {
             particles: vec![],
             death_timer: 0.0,
             state: GameState::Title,
+            goal_ball: Some(GoalBall::new(2050.0, floor_y - 50.0, Color::from_hex(0x3cb371))),
+            level_complete: false,
+            complete_timer: 0.0,
         }
     }
 
     fn reset(&mut self) {
         *self = Self::new();
         self.state = GameState::Playing;
+        self.level_complete = false;
+        self.complete_timer = 0.0;
     }
 
     fn die(&mut self) {
@@ -303,6 +336,7 @@ impl Game {
                 vel: vec2(angle.cos() * speed, angle.sin() * speed),
                 lifetime: (mq_rand::rand() as f32 / u32::MAX as f32) * 0.6 + 0.3,
                 size,
+                color_override: None,
             });
         }
     }
@@ -460,6 +494,20 @@ impl Game {
             draw_baby_sprite(bx, by, baby);
         }
 
+        // ── Goal ball ──────────────────────────────────────────────────
+        if let Some(ball) = &self.goal_ball
+            && !ball.collected
+        {
+            let sx = ball.pos.x - cam.x;
+            let sy = ball.pos.y - cam.y;
+            draw_tennis_ball(sx, sy, 12.0, ball.color, Color::new(
+                (ball.color.r * 1.1).min(1.0),
+                (ball.color.g * 1.1).min(1.0),
+                (ball.color.b * 1.1).min(1.0),
+                1.0,
+            ));
+        }
+
         // ── Poops ──────────────────────────────────────────────────────
         for poop in &self.poops {
             if !poop.eaten {
@@ -481,7 +529,8 @@ impl Game {
             let sx = p.pos.x - cam.x;
             let sy = p.pos.y - cam.y;
             let alpha = (p.lifetime / 0.9).clamp(0.0, 1.0);
-            let color = Color::new(0.9, 0.1, 0.1, alpha);
+            let base = p.color_override.unwrap_or(Color::new(0.9, 0.1, 0.1, 1.0));
+            let color = Color::new(base.r, base.g, base.b, alpha);
             draw_rectangle(sx - p.size / 2.0, sy - p.size / 2.0, p.size, p.size, color);
         }
 
@@ -501,6 +550,22 @@ impl Game {
                       48.0, Color::from_hex(0xcc0000));
 
             let subtitle = "Press Space to respawn";
+            let sub_size = measure_text(subtitle, None, 22, 1.0);
+            draw_text(subtitle, screen_width() / 2.0 - sub_size.width / 2.0, screen_height() / 2.0 + 30.0,
+                      22.0, Color::from_hex(0xaaaaaa));
+        }
+
+        // ── Level complete overlay ──────────────────────────────────────
+        if self.level_complete && self.complete_timer <= 0.0 {
+            draw_rectangle(0.0, 0.0, screen_width(), screen_height(),
+                           Color::from_rgba(0, 0, 0, 180));
+
+            let title = "LEVEL COMPLETE!";
+            let title_size = measure_text(title, None, 48, 1.0);
+            draw_text(title, screen_width() / 2.0 - title_size.width / 2.0, screen_height() / 2.0 - 20.0,
+                      48.0, Color::from_hex(0x3cb371));
+
+            let subtitle = "The dog fetched the ball!  Press Space to play again";
             let sub_size = measure_text(subtitle, None, 22, 1.0);
             draw_text(subtitle, screen_width() / 2.0 - sub_size.width / 2.0, screen_height() / 2.0 + 30.0,
                       22.0, Color::from_hex(0xaaaaaa));
@@ -533,7 +598,7 @@ impl Game {
         // Tennis ball (right of centre)
         let ball_cx = cw * 0.65;
         let ball_cy = ch * 0.48;
-        draw_tennis_ball(ball_cx, ball_cy, 24.0);
+        draw_golden_tennis_ball(ball_cx, ball_cy, 24.0);
 
         // Buttons
         let bw = 220.0;
@@ -594,12 +659,11 @@ impl Game {
 
 // ── Tennis ball drawing ──────────────────────────────────────────────────────
 
-fn draw_tennis_ball(cx: f32, cy: f32, radius: f32) {
-    // Main ball
-    draw_circle(cx, cy, radius, Color::from_hex(0xd4c73c));
-    draw_circle(cx, cy, radius - 1.5, Color::from_hex(0xe8da4a));
+fn draw_tennis_ball(cx: f32, cy: f32, radius: f32, main_color: Color, highlight_color: Color) {
+    draw_circle(cx, cy, radius, main_color);
+    draw_circle(cx, cy, radius - 1.5, highlight_color);
 
-    // Seam lines using partial-circle lines
+    // Seam lines
     let r = radius * 0.82;
     draw_circle_lines(cx, cy, r, 2.5, Color::from_hex(0xf0f0f0));
     draw_circle_lines(cx + 2.0, cy, r * 0.7, 2.0, Color::from_hex(0xf0f0f0));
@@ -607,6 +671,11 @@ fn draw_tennis_ball(cx: f32, cy: f32, radius: f32) {
     // Highlight
     draw_circle(cx - radius * 0.25, cy - radius * 0.25, radius * 0.15,
                 Color::from_rgba(255, 255, 255, 60));
+}
+
+/// Draw a golden tennis ball (original title screen variant).
+fn draw_golden_tennis_ball(cx: f32, cy: f32, radius: f32) {
+    draw_tennis_ball(cx, cy, radius, Color::from_hex(0xd4c73c), Color::from_hex(0xe8da4a));
 }
 
 /// Check if the mouse is currently over the given rectangle.
@@ -948,6 +1017,9 @@ async fn main() {
         if game.death_timer > 0.0 {
             game.death_timer -= dt;
         }
+        if game.complete_timer > 0.0 {
+            game.complete_timer -= dt;
+        }
         game.particles.retain_mut(|p| {
             p.lifetime -= dt;
             if p.lifetime <= 0.0 {
@@ -1056,8 +1128,53 @@ async fn main() {
                     game.reset();
                 }
 
+                if game.level_complete && game.complete_timer <= 0.0 && is_key_pressed(KeyCode::Space) {
+                    game.reset();
+                }
+
                 if is_key_pressed(KeyCode::R) {
                     game.reset();
+                }
+
+                // ── Goal ball update ────────────────────────────────────────
+                if let Some(ball) = &mut game.goal_ball
+                    && !game.level_complete && !ball.collected
+                {
+                    // Bounce physics
+                    ball.vel.y += GRAVITY * 0.8 * dt;
+                    ball.vel.y = ball.vel.y.clamp(-600.0, 600.0);
+                    ball.pos += ball.vel * dt;
+
+                    // Bounce off ground (platform at floor_y)
+                    let floor_y = screen_height() - 40.0;
+                    if ball.pos.y + 8.0 >= floor_y && ball.vel.y > 0.0 {
+                        ball.pos.y = floor_y - 8.0;
+                        ball.vel.y *= -0.7;
+                    }
+
+                    // Bounce off walls (keep near end of level)
+                    if ball.pos.x - 8.0 < 1800.0 { ball.pos.x = 1808.0; ball.vel.x = 100.0; }
+                    if ball.pos.x + 8.0 > 2200.0 { ball.pos.x = 2192.0; ball.vel.x = -100.0; }
+
+                    // Player collision -> fetch!
+                    if game.player.rect().intersect(ball.rect()).is_some() {
+                        ball.collected = true;
+                        game.level_complete = true;
+                        game.complete_timer = 0.5;
+                        // Spawn green burst particles from the ball
+                        for _ in 0..35 {
+                            let angle = (mq_rand::rand() as f32 / u32::MAX as f32) * std::f32::consts::TAU;
+                            let speed = (mq_rand::rand() as f32 / u32::MAX as f32) * 300.0 + 100.0;
+                            let size = (mq_rand::rand() as f32 / u32::MAX as f32) * 6.0 + 3.0;
+                            game.particles.push(Particle {
+                                pos: ball.pos,
+                                vel: vec2(angle.cos() * speed, angle.sin() * speed),
+                                lifetime: (mq_rand::rand() as f32 / u32::MAX as f32) * 0.8 + 0.3,
+                                size,
+                                color_override: Some(Color::from_hex(0x3cb371)),
+                            });
+                        }
+                    }
                 }
             }
         }
