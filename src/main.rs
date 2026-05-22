@@ -144,6 +144,10 @@ impl Poop {
     fn new(x: f32, y: f32) -> Self {
         Self { pos: vec2(x, y), eaten: false }
     }
+
+    fn rect(&self) -> Rect {
+        Rect::new(self.pos.x - 5.0, self.pos.y - 5.0, 10.0, 10.0)
+    }
 }
 
 /// A single death particle.
@@ -1023,17 +1027,21 @@ async fn main() {
                             for poop in &mut game.poops {
                                 if poop.eaten { continue; }
                                 let dist = (baby_cx - poop.pos.x).abs();
-                                if dist < 120.0 {
-                                    if !mq_rand::rand().is_multiple_of(4) {
-                                        let dir = if baby_cx < poop.pos.x { -1.0 } else { 1.0 };
-                                        baby.vel.x = dir * BABY_SPEED * 2.0;
-                                        baby.facing_right = dir > 0.0;
-                                        baby.flee_timer = 2.5;
-                                        baby.vel.y = 0.0;
-                                    } else {
-                                        poop.eaten = true;
-                                    }
+                                if dist < 120.0
+                                    && !mq_rand::rand().is_multiple_of(4)
+                                {
+                                    // 75%: flee away from the poop
+                                    let dir = if baby_cx < poop.pos.x { -1.0 } else { 1.0 };
+                                    baby.vel.x = dir * BABY_SPEED * 2.0;
+                                    baby.facing_right = dir > 0.0;
+                                    baby.flee_timer = 2.5;
+                                    baby.vel.y = 0.0;
                                     break;
+                                }
+                                // 25%: not scared — keep coming
+                                // Eat the poop if touching it
+                                if baby.rect().intersect(poop.rect()).is_some() {
+                                    poop.eaten = true;
                                 }
                             }
                         }
