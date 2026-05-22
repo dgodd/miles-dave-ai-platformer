@@ -1040,7 +1040,7 @@ fn parse_level(data: &str, floor_y: f32) -> LevelData {
                 let h: f32 = parts[4].parse().unwrap_or(SPIKE_HEIGHT);
                 lava_pits.push(Lava { pos: vec2(x, y), width: w, height: h });
             }
-            "B" if parts.len() >= 6 => {
+            "B" if parts.len() >= 5 => {
                 let x: f32 = parts[1].parse().unwrap_or(0.0);
                 let fy: f32 = parts[2].parse().unwrap_or(floor_y);
                 let min_x: f32 = parts[3].parse().unwrap_or(0.0);
