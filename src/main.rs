@@ -218,7 +218,8 @@ impl Baby {
     }
 }
 
-// ── Game state ───────────────────────────────────────────────────────────────
+/// Holds all the level data returned by build_level / level_1 / level_2.
+type LevelData = (Vec<Platform>, Vec<Spike>, Vec<Baby>, Vec<Lava>, Option<GoalBall>);
 
 /// The goal tennis ball the dog must fetch to complete the level.
 #[derive(Debug, Clone, PartialEq)]
@@ -244,6 +245,62 @@ impl GoalBall {
     }
 }
 
+/// A lava pit that kills the player on contact (same shape as spike, orange glow).
+#[derive(Debug, Clone, PartialEq)]
+struct Lava {
+    pos: Vec2,
+    width: f32,
+    height: f32,
+}
+
+impl Lava {
+    fn rect(&self) -> Rect {
+        Rect::new(self.pos.x, self.pos.y, self.width, self.height)
+    }
+
+    fn draw(&self, offset: Vec2) {
+        let sx = self.pos.x - offset.x;
+        let sy = self.pos.y - offset.y;
+
+        if sx + self.width < 0.0 || sx > screen_width() {
+            return;
+        }
+
+        let tooth_count = (self.width / SPIKE_TOOTH_WIDTH).ceil() as usize;
+        let spacing = self.width / tooth_count as f32;
+
+        // Glow behind lava
+        draw_rectangle(sx - 4.0, sy - 4.0, self.width + 8.0, self.height + 8.0,
+                       Color::from_rgba(255, 100, 0, 40));
+
+        for i in 0..tooth_count {
+            let cx = sx + i as f32 * spacing + spacing / 2.0;
+            let left = cx - spacing / 2.0;
+            let right = cx + spacing / 2.0;
+            let bottom = sy + self.height;
+            let tip_y = sy + 4.0;
+
+            // Dark core
+            draw_triangle(
+                vec2(left, bottom),
+                vec2(right, bottom),
+                vec2(cx, tip_y),
+                Color::from_hex(0xcc4400),
+            );
+            // Bright glow
+            draw_triangle(
+                vec2(left + 3.0, bottom - 2.0),
+                vec2(right - 3.0, bottom - 2.0),
+                vec2(cx, tip_y + 3.0),
+                Color::from_hex(0xff6600),
+            );
+            // Hot centre
+            draw_circle(cx, sy + self.height * 0.4, spacing * 0.2,
+                        Color::from_hex(0xffaa00));
+        }
+    }
+}
+
 #[derive(Debug, Clone, PartialEq)]
 enum GameState {
     Title,
@@ -261,6 +318,8 @@ struct Game {
     death_timer: f32,
     state: GameState,
     goal_ball: Option<GoalBall>,
+    lava_pits: Vec<Lava>,
+    level: u32,
     level_complete: bool,
     complete_timer: f32,
 }
@@ -269,6 +328,36 @@ impl Game {
     fn new() -> Self {
         let floor_y = screen_height() - 40.0;
 
+        // Build level 1 by default
+        let start_x = 80.0;
+        let start_y = floor_y - PLAYER_HEIGHT;
+        let (platforms, spikes, babies, lava_pits, goal_ball) = Self::build_level(1, floor_y);
+
+        Self {
+            player: Player::new(start_x, start_y),
+            platforms,
+            spikes,
+            babies,
+            lava_pits,
+            poops: vec![],
+            particles: vec![],
+            death_timer: 0.0,
+            state: GameState::Title,
+            goal_ball,
+            level: 1,
+            level_complete: false,
+            complete_timer: 0.0,
+        }
+    }
+
+    fn build_level(level: u32, floor_y: f32) -> LevelData {
+        match level {
+            1 => Self::level_1(floor_y),
+            _ => Self::level_2(floor_y),
+        }
+    }
+
+    fn level_1(floor_y: f32) -> LevelData {
         let platforms = vec![
             Platform { pos: vec2(0.0, floor_y), size: vec2(800.0, 40.0) },
             Platform { pos: vec2(220.0, screen_height() - 130.0), size: vec2(140.0, 20.0) },
@@ -280,14 +369,11 @@ impl Game {
             Platform { pos: vec2(1600.0, screen_height() - 300.0), size: vec2(100.0, 20.0) },
             Platform { pos: vec2(1800.0, floor_y), size: vec2(400.0, 40.0) },
         ];
-
         let spike_y = floor_y + 40.0 - SPIKE_HEIGHT;
         let spikes = vec![
             Spike { pos: vec2(800.0, spike_y), width: 1000.0, height: SPIKE_HEIGHT },
             Spike { pos: vec2(2200.0, spike_y), width: 200.0, height: SPIKE_HEIGHT },
         ];
-
-        // Babies patrol the full width of their platform
         let babies = vec![
             Baby::new(550.0, floor_y, 0.0, 800.0),
             Baby::new(290.0, screen_height() - 130.0, 220.0, 360.0),
@@ -296,23 +382,67 @@ impl Game {
             Baby::new(700.0, floor_y, 0.0, 800.0),
             Baby::new(1950.0, floor_y, 1800.0, 2200.0),
         ];
+        let goal = Some(GoalBall::new(2050.0, floor_y - 50.0, Color::from_hex(0x3cb371)));
+        (platforms, spikes, babies, vec![], goal)
+    }
 
-        let start_x = 80.0;
-        let start_y = floor_y - PLAYER_HEIGHT;
-
-        Self {
-            player: Player::new(start_x, start_y),
-            platforms,
-            spikes,
-            babies,
-            poops: vec![],
-            particles: vec![],
-            death_timer: 0.0,
-            state: GameState::Title,
-            goal_ball: Some(GoalBall::new(2050.0, floor_y - 50.0, Color::from_hex(0x3cb371))),
-            level_complete: false,
-            complete_timer: 0.0,
-        }
+    fn level_2(floor_y: f32) -> LevelData {
+        let spike_y = floor_y + 40.0 - SPIKE_HEIGHT;
+        // Level 2: twice as long, harder jumps, lava pits, more babies
+        let platforms = vec![
+            // Ground 1 — shorter, ends in lava
+            Platform { pos: vec2(0.0, floor_y), size: vec2(500.0, 40.0) },
+            // Steeper staircase (wider gaps, higher per step)
+            Platform { pos: vec2(250.0, screen_height() - 160.0), size: vec2(100.0, 20.0) },
+            Platform { pos: vec2(500.0, screen_height() - 300.0), size: vec2(100.0, 20.0) },
+            // Mid-level platforms after staircase
+            Platform { pos: vec2(750.0, screen_height() - 180.0), size: vec2(120.0, 20.0) },
+            Platform { pos: vec2(950.0, screen_height() - 320.0), size: vec2(120.0, 20.0) },
+            // High platform
+            Platform { pos: vec2(1150.0, screen_height() - 420.0), size: vec2(200.0, 20.0) },
+            // Down to lower platform
+            Platform { pos: vec2(1500.0, screen_height() - 250.0), size: vec2(130.0, 20.0) },
+            // Ground 2 — beyond first lava pit
+            Platform { pos: vec2(1200.0, floor_y), size: vec2(400.0, 40.0) },
+            // More staircase up
+            Platform { pos: vec2(1800.0, screen_height() - 160.0), size: vec2(120.0, 20.0) },
+            Platform { pos: vec2(2050.0, screen_height() - 300.0), size: vec2(120.0, 20.0) },
+            // High platform
+            Platform { pos: vec2(2300.0, screen_height() - 420.0), size: vec2(180.0, 20.0) },
+            // Down to final stretch
+            Platform { pos: vec2(2650.0, screen_height() - 250.0), size: vec2(130.0, 20.0) },
+            // Ground 3 — final section with goal ball
+            Platform { pos: vec2(2900.0, floor_y), size: vec2(600.0, 40.0) },
+        ];
+        // Lava pits in ground gaps
+        let lava_pits = vec![
+            Lava { pos: vec2(500.0, spike_y), width: 700.0, height: SPIKE_HEIGHT },
+            Lava { pos: vec2(1600.0, spike_y), width: 200.0, height: SPIKE_HEIGHT },
+            Lava { pos: vec2(3100.0, spike_y), width: 200.0, height: SPIKE_HEIGHT },
+            // Extra lava under the high platforms as a floor hazard
+            Lava { pos: vec2(1150.0, spike_y + 300.0), width: 200.0, height: 60.0 },
+            Lava { pos: vec2(2300.0, spike_y + 300.0), width: 180.0, height: 60.0 },
+        ];
+        // Extra spike pits
+        let spikes = vec![
+            Spike { pos: vec2(3500.0, spike_y), width: 200.0, height: SPIKE_HEIGHT },
+        ];
+        // More babies on harder platforms
+        let babies = vec![
+            Baby::new(300.0, floor_y, 0.0, 500.0),
+            Baby::new(300.0, screen_height() - 160.0, 250.0, 350.0),
+            Baby::new(550.0, screen_height() - 300.0, 500.0, 600.0),
+            Baby::new(810.0, screen_height() - 180.0, 750.0, 870.0),
+            Baby::new(1000.0, screen_height() - 320.0, 950.0, 1070.0),
+            Baby::new(1250.0, screen_height() - 420.0, 1150.0, 1350.0),
+            Baby::new(1550.0, screen_height() - 250.0, 1500.0, 1630.0),
+            Baby::new(1400.0, floor_y, 1200.0, 1600.0),
+            Baby::new(1860.0, screen_height() - 160.0, 1800.0, 1920.0),
+            Baby::new(2100.0, screen_height() - 300.0, 2050.0, 2170.0),
+            Baby::new(3100.0, floor_y, 2900.0, 3500.0),
+        ];
+        let goal = Some(GoalBall::new(3300.0, floor_y - 50.0, Color::from_hex(0x4a90d9)));
+        (platforms, spikes, babies, lava_pits, goal)
     }
 
     fn reset(&mut self) {
@@ -320,6 +450,26 @@ impl Game {
         self.state = GameState::Playing;
         self.level_complete = false;
         self.complete_timer = 0.0;
+        self.level = 1;
+    }
+
+    fn next_level(&mut self) {
+        let next = self.level + 1;
+        let floor_y = screen_height() - 40.0;
+        let (platforms, spikes, babies, lava_pits, goal_ball) = Self::build_level(next, floor_y);
+        self.player = Player::new(80.0, floor_y - PLAYER_HEIGHT);
+        self.platforms = platforms;
+        self.spikes = spikes;
+        self.babies = babies;
+        self.lava_pits = lava_pits;
+        self.goal_ball = goal_ball;
+        self.level = next;
+        self.poops.clear();
+        self.particles.clear();
+        self.level_complete = false;
+        self.complete_timer = 0.0;
+        self.player.dead = false;
+        self.state = GameState::Playing;
     }
 
     fn die(&mut self) {
@@ -432,6 +582,14 @@ impl Game {
             }
         }
 
+        // ── Lava collisions ─────────────────────────────────────────────
+        for lava in &self.lava_pits {
+            if self.player.rect().intersect(lava.rect()).is_some() {
+                self.die();
+                break;
+            }
+        }
+
         // ── Baby collisions ─────────────────────────────────────────────
         if !self.player.dead {
             for baby in &self.babies {
@@ -485,6 +643,11 @@ impl Game {
         // ── Spikes ──────────────────────────────────────────────────────
         for spike in &self.spikes {
             spike.draw(cam);
+        }
+
+        // ── Lava pits ──────────────────────────────────────────────────
+        for lava in &self.lava_pits {
+            lava.draw(cam);
         }
 
         // ── Babies ──────────────────────────────────────────────────────
@@ -560,12 +723,12 @@ impl Game {
             draw_rectangle(0.0, 0.0, screen_width(), screen_height(),
                            Color::from_rgba(0, 0, 0, 180));
 
-            let title = "LEVEL COMPLETE!";
-            let title_size = measure_text(title, None, 48, 1.0);
-            draw_text(title, screen_width() / 2.0 - title_size.width / 2.0, screen_height() / 2.0 - 20.0,
+            let level_str = format!("LEVEL {} COMPLETE!", self.level);
+            let title_size = measure_text(&level_str, None, 48, 1.0);
+            draw_text(&level_str, screen_width() / 2.0 - title_size.width / 2.0, screen_height() / 2.0 - 20.0,
                       48.0, Color::from_hex(0x3cb371));
 
-            let subtitle = "The dog fetched the ball!  Press Space to play again";
+            let subtitle = "The dog fetched the ball!  Press Space for next level";
             let sub_size = measure_text(subtitle, None, 22, 1.0);
             draw_text(subtitle, screen_width() / 2.0 - sub_size.width / 2.0, screen_height() / 2.0 + 30.0,
                       22.0, Color::from_hex(0xaaaaaa));
@@ -1160,7 +1323,7 @@ async fn main() {
                 }
 
                 if game.level_complete && game.complete_timer <= 0.0 && is_key_pressed(KeyCode::Space) {
-                    game.reset();
+                    game.next_level();
                 }
 
                 if is_key_pressed(KeyCode::R) {
