@@ -237,7 +237,7 @@ impl GoalBall {
         let range = 250.0;
         Self {
             pos: vec2(x, y),
-            vel: vec2(100.0, -200.0),
+            vel: vec2(80.0, 0.0),
             color,
             collected: false,
             min_x: x - range,
