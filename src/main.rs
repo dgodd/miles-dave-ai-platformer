@@ -606,7 +606,7 @@ impl Game {
         {
             let cam = Camera2D {
                 target: vec2(dog_cx, dog_cy),
-                offset: vec2(cw / 2.0, ch / 2.0),
+                offset: vec2(dog_cx, dog_cy),
                 rotation: rot_angle,
                 zoom: vec2(1.0, 1.0),
                 ..Default::default()
@@ -622,7 +622,7 @@ impl Game {
         {
             let cam = Camera2D {
                 target: vec2(ball_cx, ball_cy),
-                offset: vec2(cw / 2.0, ch / 2.0),
+                offset: vec2(ball_cx, ball_cy),
                 rotation: -rot_angle,
                 zoom: vec2(1.0, 1.0),
                 ..Default::default()
