@@ -356,100 +356,11 @@ impl Game {
     }
 
     fn build_level(level: u32, floor_y: f32) -> LevelData {
-        match level {
-            1 => Self::level_1(floor_y),
-            _ => Self::level_2(floor_y),
-        }
-    }
-
-    fn level_1(floor_y: f32) -> LevelData {
-        let platforms = vec![
-            Platform { pos: vec2(0.0, floor_y), size: vec2(800.0, 40.0) },
-            Platform { pos: vec2(220.0, screen_height() - 130.0), size: vec2(140.0, 20.0) },
-            Platform { pos: vec2(420.0, screen_height() - 240.0), size: vec2(140.0, 20.0) },
-            Platform { pos: vec2(620.0, screen_height() - 350.0), size: vec2(140.0, 20.0) },
-            Platform { pos: vec2(850.0, screen_height() - 180.0), size: vec2(130.0, 20.0) },
-            Platform { pos: vec2(1050.0, screen_height() - 280.0), size: vec2(130.0, 20.0) },
-            Platform { pos: vec2(1250.0, screen_height() - 400.0), size: vec2(250.0, 20.0) },
-            Platform { pos: vec2(1600.0, screen_height() - 300.0), size: vec2(100.0, 20.0) },
-            Platform { pos: vec2(1800.0, floor_y), size: vec2(400.0, 40.0) },
-        ];
-        let spike_y = floor_y + 40.0 - SPIKE_HEIGHT;
-        let spikes = vec![
-            Spike { pos: vec2(800.0, spike_y), width: 1000.0, height: SPIKE_HEIGHT },
-            Spike { pos: vec2(2200.0, spike_y), width: 200.0, height: SPIKE_HEIGHT },
-        ];
-        let babies = vec![
-            Baby::new(550.0, floor_y, 0.0, 800.0),
-            Baby::new(290.0, screen_height() - 130.0, 220.0, 360.0),
-            Baby::new(490.0, screen_height() - 240.0, 420.0, 560.0),
-            Baby::new(250.0, floor_y, 0.0, 800.0),
-            Baby::new(700.0, floor_y, 0.0, 800.0),
-            Baby::new(1950.0, floor_y, 1800.0, 2200.0),
-        ];
-        let goal = Some(GoalBall::new(2050.0, floor_y - 50.0, Color::from_hex(0x3cb371)));
-        (platforms, spikes, babies, vec![], goal)
-    }
-
-    fn level_2(floor_y: f32) -> LevelData {
-        let spike_y = floor_y + 40.0 - SPIKE_HEIGHT;
-        // Level 2: twice as long, harder jumps, lava pits, more babies
-        let platforms = vec![
-            // Ground 1 — shorter, ends in lava
-            Platform { pos: vec2(0.0, floor_y), size: vec2(500.0, 40.0) },
-            // Steeper staircase (wider gaps, higher per step)
-            Platform { pos: vec2(250.0, screen_height() - 160.0), size: vec2(100.0, 20.0) },
-            Platform { pos: vec2(500.0, screen_height() - 300.0), size: vec2(100.0, 20.0) },
-            // Mid-level platforms after staircase
-            Platform { pos: vec2(750.0, screen_height() - 180.0), size: vec2(120.0, 20.0) },
-            Platform { pos: vec2(950.0, screen_height() - 320.0), size: vec2(120.0, 20.0) },
-            // High platform
-            Platform { pos: vec2(1150.0, screen_height() - 420.0), size: vec2(200.0, 20.0) },
-            // Down to lower platform
-            Platform { pos: vec2(1500.0, screen_height() - 250.0), size: vec2(130.0, 20.0) },
-            // Ground 2 — beyond first lava pit
-            Platform { pos: vec2(1200.0, floor_y), size: vec2(400.0, 40.0) },
-            // More staircase up
-            Platform { pos: vec2(1800.0, screen_height() - 160.0), size: vec2(120.0, 20.0) },
-            Platform { pos: vec2(2050.0, screen_height() - 300.0), size: vec2(120.0, 20.0) },
-            // High platform
-            Platform { pos: vec2(2300.0, screen_height() - 420.0), size: vec2(180.0, 20.0) },
-            // Down to final stretch
-            Platform { pos: vec2(2650.0, screen_height() - 250.0), size: vec2(130.0, 20.0) },
-            // Ground 3 — final section with goal ball
-            Platform { pos: vec2(2900.0, floor_y), size: vec2(600.0, 40.0) },
-        ];
-        // Lava pits in ground gaps
-        let lava_pits = vec![
-            Lava { pos: vec2(500.0, spike_y), width: 700.0, height: SPIKE_HEIGHT },
-            Lava { pos: vec2(1600.0, spike_y), width: 200.0, height: SPIKE_HEIGHT },
-            Lava { pos: vec2(3100.0, spike_y), width: 200.0, height: SPIKE_HEIGHT },
-            // Extra lava under the high platforms as a floor hazard
-            Lava { pos: vec2(1150.0, spike_y + 300.0), width: 200.0, height: 60.0 },
-            Lava { pos: vec2(2300.0, spike_y + 300.0), width: 180.0, height: 60.0 },
-        ];
-        // Extra spike pits
-        let spikes = vec![
-            Spike { pos: vec2(3500.0, spike_y), width: 200.0, height: SPIKE_HEIGHT },
-        ];
-        // More babies on harder platforms
-        let babies = vec![
-            Baby::new(300.0, floor_y, 0.0, 500.0),
-            Baby::new(300.0, screen_height() - 160.0, 250.0, 350.0),
-            Baby::new(550.0, screen_height() - 300.0, 500.0, 600.0),
-            Baby::new(810.0, screen_height() - 180.0, 750.0, 870.0),
-            Baby::new(1000.0, screen_height() - 320.0, 950.0, 1070.0),
-            Baby::new(1250.0, screen_height() - 420.0, 1150.0, 1350.0),
-            Baby::new(1550.0, screen_height() - 250.0, 1500.0, 1630.0),
-            Baby::new(1400.0, floor_y, 1200.0, 1600.0),
-            Baby::new(1860.0, screen_height() - 160.0, 1800.0, 1920.0),
-            Baby::new(2100.0, screen_height() - 300.0, 2050.0, 2170.0),
-            Baby::new(2950.0, floor_y, 2900.0, 3500.0),
-            Baby::new(3100.0, floor_y, 2900.0, 3500.0),
-            Baby::new(3350.0, floor_y, 2900.0, 3500.0),
-        ];
-        let goal = Some(GoalBall::new(3300.0, floor_y - 50.0, Color::from_hex(0x4a90d9)));
-        (platforms, spikes, babies, lava_pits, goal)
+        let data = match level {
+            1 => include_str!("../levels/level1.txt"),
+            _ => include_str!("../levels/level2.txt"),
+        };
+        parse_level(data, floor_y)
     }
 
     fn reset(&mut self) {
@@ -1080,6 +991,86 @@ fn draw_poop_sprite(x: f32, y: f32) {
     draw_circle(x - 1.0, y - 3.0, 2.0, Color::from_hex(0x8c5c30));
 }
 
+
+// ── Level file parser ───────────────────────────────────────────────────────
+
+/// Parse a level definition from ASCII data into level components.
+fn parse_level(data: &str, floor_y: f32) -> LevelData {
+    let spike_y = floor_y + 40.0 - SPIKE_HEIGHT;
+    let mut platforms: Vec<Platform> = vec![];
+    let mut spikes: Vec<Spike> = vec![];
+    let mut babies: Vec<Baby> = vec![];
+    let mut lava_pits: Vec<Lava> = vec![];
+    let mut goal_ball: Option<GoalBall> = None;
+    let mut player_start: Option<(f32, f32)> = None;
+
+    for line in data.lines() {
+        let line = line.trim();
+        if line.is_empty() || line.starts_with(';') {
+            continue;
+        }
+        let parts: Vec<&str> = line.split_whitespace().collect();
+        if parts.is_empty() {
+            continue;
+        }
+        match parts[0] {
+            "P" if parts.len() >= 3 => {
+                let x: f32 = parts[1].parse().unwrap_or(80.0);
+                let y: f32 = parts[2].parse().unwrap_or(floor_y - PLAYER_HEIGHT);
+                player_start = Some((x, y));
+            }
+            "#" if parts.len() >= 5 => {
+                let x: f32 = parts[1].parse().unwrap_or(0.0);
+                let y: f32 = parts[2].parse().unwrap_or(floor_y);
+                let w: f32 = parts[3].parse().unwrap_or(100.0);
+                let h: f32 = parts[4].parse().unwrap_or(40.0);
+                platforms.push(Platform { pos: vec2(x, y), size: vec2(w, h) });
+            }
+            "S" if parts.len() >= 5 => {
+                let x: f32 = parts[1].parse().unwrap_or(0.0);
+                let y: f32 = parts[2].parse().unwrap_or(spike_y);
+                let w: f32 = parts[3].parse().unwrap_or(100.0);
+                let h: f32 = parts[4].parse().unwrap_or(SPIKE_HEIGHT);
+                spikes.push(Spike { pos: vec2(x, y), width: w, height: h });
+            }
+            "L" if parts.len() >= 5 => {
+                let x: f32 = parts[1].parse().unwrap_or(0.0);
+                let y: f32 = parts[2].parse().unwrap_or(spike_y);
+                let w: f32 = parts[3].parse().unwrap_or(100.0);
+                let h: f32 = parts[4].parse().unwrap_or(SPIKE_HEIGHT);
+                lava_pits.push(Lava { pos: vec2(x, y), width: w, height: h });
+            }
+            "B" if parts.len() >= 6 => {
+                let x: f32 = parts[1].parse().unwrap_or(0.0);
+                let fy: f32 = parts[2].parse().unwrap_or(floor_y);
+                let min_x: f32 = parts[3].parse().unwrap_or(0.0);
+                let max_x: f32 = parts[4].parse().unwrap_or(200.0);
+                babies.push(Baby::new(x, fy, min_x, max_x));
+            }
+            "G" if parts.len() >= 4 => {
+                let x: f32 = parts[1].parse().unwrap_or(0.0);
+                let y: f32 = parts[2].parse().unwrap_or(floor_y - 50.0);
+                let color = match parts[3] {
+                    "green" => Color::from_hex(0x3cb371),
+                    "blue" => Color::from_hex(0x4a90d9),
+                    "red" => Color::from_hex(0xe94560),
+                    "gold" | "yellow" => Color::from_hex(0xd4c73c),
+                    _ => Color::from_hex(0x3cb371),
+                };
+                goal_ball = Some(GoalBall::new(x, y, color));
+            }
+            _ => {}
+        }
+    }
+
+    // If no player start was specified, use a default
+    let _start = player_start.unwrap_or((80.0, floor_y - PLAYER_HEIGHT));
+    // Store player start for Game::new() to use - but we can't return it easily
+    // The calling code in Game::new() uses hardcoded start_x/start_y
+    // For now, the level file P line is advisory; Game::new() uses its own start
+
+    (platforms, spikes, babies, lava_pits, goal_ball)
+}
 
 // ── Platform helpers ─────────────────────────────────────────────────────────
 

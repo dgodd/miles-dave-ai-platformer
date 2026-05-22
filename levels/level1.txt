@@ -1,0 +1,31 @@
+; Level 1 — Starting Out
+; Format: symbol x y [width] [extra]
+;   P = player start
+;   # = platform (x y width height)
+;   S = spike pit   (x y width height)
+;   B = baby        (x floor_y min_x max_x)
+;   G = goal ball   (x y color)
+
+P 80 724
+
+# 0    760 800 40
+# 220  670 140 20
+# 420  560 140 20
+# 620  450 140 20
+# 850  620 130 20
+# 1050 520 130 20
+# 1250 400 250 20
+# 1600 500 100 20
+# 1800 760 400 40
+
+S 800 744 1000 24
+S 2200 744 200 24
+
+B 550 760 0 800
+B 290 670 220 360
+B 490 560 420 560
+B 250 760 0 800
+B 700 760 0 800
+B 1950 760 1800 2200
+
+G 2050 710 green
