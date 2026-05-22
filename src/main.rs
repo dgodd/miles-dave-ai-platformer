@@ -730,10 +730,11 @@ impl Game {
             draw_rectangle(0.0, 0.0, screen_width(), screen_height(),
                            Color::from_rgba(0, 0, 0, 180));
 
+            let ball_color = self.goal_ball.as_ref().map(|b| b.color).unwrap_or(Color::from_hex(0x3cb371));
             let level_str = format!("LEVEL {} COMPLETE!", self.level);
             let title_size = measure_text(&level_str, None, 48, 1.0);
             draw_text(&level_str, screen_width() / 2.0 - title_size.width / 2.0, screen_height() / 2.0 - 20.0,
-                      48.0, Color::from_hex(0x3cb371));
+                      48.0, ball_color);
 
             let subtitle = "The dog fetched the ball!  Press Space for next level";
             let sub_size = measure_text(subtitle, None, 22, 1.0);
