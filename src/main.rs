@@ -593,12 +593,12 @@ impl Game {
         let dog_cx = cw * 0.35;
         let dog_cy = ch * 0.48;
         let dummy = Player::new(0.0, 0.0);
-        draw_dog_sprite(dog_cx, dog_cy, &dummy, DOG_SCALE * 4.0);
+        draw_dog_sprite(dog_cx, dog_cy, &dummy, DOG_SCALE * 3.2);
 
         // Tennis ball (right of centre)
         let ball_cx = cw * 0.65;
         let ball_cy = ch * 0.48;
-        draw_golden_tennis_ball(ball_cx, ball_cy, 8.0 * DOG_SCALE * 4.0);
+        draw_golden_tennis_ball(ball_cx, ball_cy, 8.0 * DOG_SCALE * 3.2);
 
         // Buttons
         let bw = 220.0;
