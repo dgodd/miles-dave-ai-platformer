@@ -1338,7 +1338,6 @@ async fn main() {
                     ball.pos += ball.vel * dt;
 
                     // Bounce off platforms (find the platform directly below the ball)
-                    let mut bounced = false;
                     for plat in &game.platforms {
                         let ball_bottom = ball.pos.y + 8.0;
                         let plat_top = plat.pos.y;
@@ -1351,17 +1350,7 @@ async fn main() {
                         {
                             ball.pos.y = plat_top - 8.0;
                             ball.vel.y *= -0.6;
-                            bounced = true;
                             break;
-                        }
-                    }
-
-                    // Fallback: universal floor so the ball never falls forever
-                    if !bounced {
-                        let floor_y = screen_height() - 40.0;
-                        if ball.pos.y + 8.0 >= floor_y && ball.vel.y > 0.0 {
-                            ball.pos.y = floor_y - 8.0;
-                            ball.vel.y *= -0.6;
                         }
                     }
 
