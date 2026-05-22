@@ -741,7 +741,7 @@ fn draw_dog_sprite(cx: f32, cy: f32, p: &Player, s: f32) {
     draw_circle(bx - 6.0 * s, by + 2.0 * s, 3.0 * s, FUR_LIGHT);
     draw_circle(bx + 6.0 * s, by + 2.0 * s, 3.0 * s, FUR_LIGHT);
 
-    let tail_anchor_x = -15.0 * s;
+    let tail_anchor_x = -12.0 * s;
     let tail_anchor_y = by - 3.0 * s;
     let tail_dir = tail_angle * 0.7 - 0.6;
     let tip_local_x = tail_anchor_x + tail_dir.cos() * 10.0 * s;
