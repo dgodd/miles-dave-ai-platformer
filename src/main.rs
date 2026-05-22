@@ -576,6 +576,16 @@ impl Game {
     fn draw_title_screen(&self) {
         let cw = screen_width();
         let ch = screen_height();
+        let time = get_time();
+        let rot_angle = ((time as f32) * 1.5).sin() * std::f32::consts::FRAC_PI_4;
+
+        // ── Golden particles (behind dog and ball) ─────────────────────
+        for p in &self.particles {
+            let alpha = (p.lifetime / 0.9).clamp(0.0, 1.0);
+            let base = p.color_override.unwrap_or(Color::new(0.9, 0.1, 0.1, 1.0));
+            let color = Color::new(base.r, base.g, base.b, alpha);
+            draw_rectangle(p.pos.x - p.size / 2.0, p.pos.y - p.size / 2.0, p.size, p.size, color);
+        }
 
         // Title text
         let title_font_size = 72.0;
@@ -589,16 +599,38 @@ impl Game {
         let ss = measure_text(sub, None, sub_font as _, 1.0);
         draw_text(sub, (cw - ss.width) / 2.0, ch * 0.28, sub_font, Color::from_hex(0xaaaaaa));
 
-        // Dog sprite (left of centre)
+        // Dog sprite (left of centre) — oscillating rotation
         let dog_cx = cw * 0.35;
         let dog_cy = ch * 0.48;
         let dummy = Player::new(0.0, 0.0);
-        draw_dog_sprite(dog_cx, dog_cy, &dummy, DOG_SCALE * 3.2);
+        {
+            let cam = Camera2D {
+                target: vec2(dog_cx, dog_cy),
+                offset: vec2(cw / 2.0, ch / 2.0),
+                rotation: rot_angle,
+                zoom: vec2(1.0, 1.0),
+                ..Default::default()
+            };
+            set_camera(&cam);
+            draw_dog_sprite(dog_cx, dog_cy, &dummy, DOG_SCALE * 3.2);
+            set_default_camera();
+        }
 
-        // Tennis ball (right of centre)
+        // Tennis ball (right of centre) — oscillating rotation
         let ball_cx = cw * 0.65;
         let ball_cy = ch * 0.48;
-        draw_golden_tennis_ball(ball_cx, ball_cy, 8.0 * DOG_SCALE * 3.2);
+        {
+            let cam = Camera2D {
+                target: vec2(ball_cx, ball_cy),
+                offset: vec2(cw / 2.0, ch / 2.0),
+                rotation: -rot_angle,
+                zoom: vec2(1.0, 1.0),
+                ..Default::default()
+            };
+            set_camera(&cam);
+            draw_golden_tennis_ball(ball_cx, ball_cy, 8.0 * DOG_SCALE * 3.2 * 1.1);
+            set_default_camera();
+        }
 
         // Buttons
         let bw = 220.0;
@@ -1028,9 +1060,32 @@ async fn main() {
             true
         });
 
-        match &game.state {
-            GameState::Title | GameState::Tutorial => {
-                // ── Title / Tutorial screen input ────────────────────────
+        if game.state == GameState::Title || game.state == GameState::Tutorial {
+            // ── Title golden particles ─────────────────────────────────
+            if game.state == GameState::Title {
+                let cw = screen_width();
+                let ch = screen_height();
+                let dog_cx = cw * 0.35;
+                let dog_cy = ch * 0.48;
+                let ball_cx = cw * 0.65;
+                let ball_cy = ch * 0.48;
+                for _ in 0..2 {
+                    let src_x = if mq_rand::rand().is_multiple_of(2) { dog_cx } else { ball_cx };
+                    let src_y = if mq_rand::rand().is_multiple_of(2) { dog_cy } else { ball_cy };
+                    let angle = (mq_rand::rand() as f32 / u32::MAX as f32) * std::f32::consts::TAU;
+                    let speed = (mq_rand::rand() as f32 / u32::MAX as f32) * 60.0 + 20.0;
+                    let size = (mq_rand::rand() as f32 / u32::MAX as f32) * 3.0 + 2.0;
+                    game.particles.push(Particle {
+                        pos: vec2(src_x, src_y),
+                        vel: vec2(angle.cos() * speed, angle.sin() * speed),
+                        lifetime: (mq_rand::rand() as f32 / u32::MAX as f32) * 1.5 + 0.8,
+                        size,
+                        color_override: Some(Color::from_hex(0xffd700)),
+                    });
+                }
+            }
+
+            // ── Title / Tutorial screen input ────────────────────────
                 if is_mouse_button_pressed(MouseButton::Left) {
                     let (mx, my) = mouse_position();
                     let cw = screen_width();
@@ -1058,9 +1113,8 @@ async fn main() {
                 if is_key_pressed(KeyCode::Escape) {
                     game.state = GameState::Title;
                 }
-            }
-            GameState::Playing => {
-                // ── Game update ──────────────────────────────────────────
+        } else {
+            // Playing state
                 if !game.player.dead {
                     game.update_player(dt);
 
@@ -1175,7 +1229,6 @@ async fn main() {
                         }
                     }
                 }
-            }
         }
 
         // ── Draw ────────────────────────────────────────────────────────
