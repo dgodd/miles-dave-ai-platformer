@@ -1334,15 +1334,24 @@ async fn main() {
                     && !game.level_complete && !ball.collected
                 {
                     // Bounce physics
-                    ball.vel.y += GRAVITY * 0.8 * dt;
-                    ball.vel.y = ball.vel.y.clamp(-600.0, 600.0);
+                    ball.vel.y += GRAVITY * dt;
                     ball.pos += ball.vel * dt;
 
-                    // Bounce off ground (platform at floor_y)
-                    let floor_y = screen_height() - 40.0;
-                    if ball.pos.y + 8.0 >= floor_y && ball.vel.y > 0.0 {
-                        ball.pos.y = floor_y - 8.0;
-                        ball.vel.y *= -0.7;
+                    // Bounce off platforms (find the platform directly below the ball)
+                    for plat in &game.platforms {
+                        let ball_bottom = ball.pos.y + 8.0;
+                        let plat_top = plat.pos.y;
+                        let overlaps_x = ball.pos.x + 8.0 > plat.pos.x
+                            && ball.pos.x - 8.0 < plat.pos.x + plat.size.x;
+                        if overlaps_x
+                            && ball_bottom >= plat_top
+                            && ball_bottom <= plat_top + 12.0
+                            && ball.vel.y > 0.0
+                        {
+                            ball.pos.y = plat_top - 8.0;
+                            ball.vel.y *= -0.6;
+                            break;
+                        }
                     }
 
                     // Bounce off walls (keep near end of level, within ball's range)
