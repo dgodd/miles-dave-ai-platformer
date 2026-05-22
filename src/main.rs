@@ -228,15 +228,20 @@ struct GoalBall {
     vel: Vec2,
     color: Color,
     collected: bool,
+    min_x: f32,
+    max_x: f32,
 }
 
 impl GoalBall {
     fn new(x: f32, y: f32, color: Color) -> Self {
+        let range = 250.0;
         Self {
             pos: vec2(x, y),
             vel: vec2(100.0, -200.0),
             color,
             collected: false,
+            min_x: x - range,
+            max_x: x + range,
         }
     }
 
@@ -439,7 +444,9 @@ impl Game {
             Baby::new(1400.0, floor_y, 1200.0, 1600.0),
             Baby::new(1860.0, screen_height() - 160.0, 1800.0, 1920.0),
             Baby::new(2100.0, screen_height() - 300.0, 2050.0, 2170.0),
+            Baby::new(2950.0, floor_y, 2900.0, 3500.0),
             Baby::new(3100.0, floor_y, 2900.0, 3500.0),
+            Baby::new(3350.0, floor_y, 2900.0, 3500.0),
         ];
         let goal = Some(GoalBall::new(3300.0, floor_y - 50.0, Color::from_hex(0x4a90d9)));
         (platforms, spikes, babies, lava_pits, goal)
@@ -1346,9 +1353,9 @@ async fn main() {
                         ball.vel.y *= -0.7;
                     }
 
-                    // Bounce off walls (keep near end of level)
-                    if ball.pos.x - 8.0 < 1800.0 { ball.pos.x = 1808.0; ball.vel.x = 100.0; }
-                    if ball.pos.x + 8.0 > 2200.0 { ball.pos.x = 2192.0; ball.vel.x = -100.0; }
+                    // Bounce off walls (keep near end of level, within ball's range)
+                    if ball.pos.x - 8.0 < ball.min_x { ball.pos.x = ball.min_x + 8.0; ball.vel.x = 100.0; }
+                    if ball.pos.x + 8.0 > ball.max_x { ball.pos.x = ball.max_x - 8.0; ball.vel.x = -100.0; }
 
                     // Player collision -> fetch!
                     if game.player.rect().intersect(ball.rect()).is_some() {
