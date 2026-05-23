@@ -993,16 +993,21 @@ fn draw_golden_tennis_ball(cx: f32, cy: f32, radius: f32) {
     draw_tennis_ball(cx, cy, radius, Color::from_hex(0xd4c73c), Color::from_hex(0xe8da4a));
 }
 
-/// Draw a heart shape using two circles and a triangle.
+/// Draw a heart shape using overlapping circles.
 fn draw_heart(cx: f32, cy: f32, size: f32, color: Color) {
     let r = size * 0.5;
-    let off = size * 0.28;
-    draw_circle(cx - off, cy - off * 0.2, r, color);
-    draw_circle(cx + off, cy - off * 0.2, r, color);
+    let off = size * 0.24;
+    // Top bumps
+    draw_circle(cx - off, cy - off * 0.4, r, color);
+    draw_circle(cx + off, cy - off * 0.4, r, color);
+    // Lower bumps (fill in the sides)
+    draw_circle(cx - off * 0.6, cy + off * 0.4, r * 0.8, color);
+    draw_circle(cx + off * 0.6, cy + off * 0.4, r * 0.8, color);
+    // Point
     draw_triangle(
-        vec2(cx - off * 2.0, cy + off * 0.3),
-        vec2(cx + off * 2.0, cy + off * 0.3),
-        vec2(cx, cy + size * 0.75),
+        vec2(cx - off * 1.5, cy + off * 0.1),
+        vec2(cx + off * 1.5, cy + off * 0.1),
+        vec2(cx, cy + size * 0.85),
         color,
     );
 }
@@ -1010,12 +1015,14 @@ fn draw_heart(cx: f32, cy: f32, size: f32, color: Color) {
 /// Draw a heart outline (empty heart) at the given position.
 fn draw_heart_outline(cx: f32, cy: f32, size: f32, color: Color) {
     let r = size * 0.5;
-    let off = size * 0.28;
-    draw_circle_lines(cx - off, cy - off * 0.2, r, 1.5, color);
-    draw_circle_lines(cx + off, cy - off * 0.2, r, 1.5, color);
-    let tip = vec2(cx, cy + size * 0.75);
-    let left = vec2(cx - off * 2.0, cy + off * 0.3);
-    let right = vec2(cx + off * 2.0, cy + off * 0.3);
+    let off = size * 0.24;
+    draw_circle_lines(cx - off, cy - off * 0.4, r, 1.5, color);
+    draw_circle_lines(cx + off, cy - off * 0.4, r, 1.5, color);
+    draw_circle_lines(cx - off * 0.6, cy + off * 0.4, r * 0.8, 1.5, color);
+    draw_circle_lines(cx + off * 0.6, cy + off * 0.4, r * 0.8, 1.5, color);
+    let tip = vec2(cx, cy + size * 0.85);
+    let left = vec2(cx - off * 1.5, cy + off * 0.1);
+    let right = vec2(cx + off * 1.5, cy + off * 0.1);
     draw_line(left.x, left.y, tip.x, tip.y, 1.5, color);
     draw_line(right.x, right.y, tip.x, tip.y, 1.5, color);
 }
