@@ -996,13 +996,13 @@ fn draw_golden_tennis_ball(cx: f32, cy: f32, radius: f32) {
 /// Draw a heart shape using two circles and a triangle.
 fn draw_heart(cx: f32, cy: f32, size: f32, color: Color) {
     let r = size * 0.5;
-    let offset = r * 0.3;
-    draw_circle(cx - offset, cy, r, color);
-    draw_circle(cx + offset, cy, r, color);
+    let off = size * 0.28;
+    draw_circle(cx - off, cy - off * 0.2, r, color);
+    draw_circle(cx + off, cy - off * 0.2, r, color);
     draw_triangle(
-        vec2(cx - offset * 1.8, cy + offset * 0.5),
-        vec2(cx + offset * 1.8, cy + offset * 0.5),
-        vec2(cx, cy + size * 0.9),
+        vec2(cx - off * 2.0, cy + off * 0.3),
+        vec2(cx + off * 2.0, cy + off * 0.3),
+        vec2(cx, cy + size * 0.75),
         color,
     );
 }
@@ -1010,13 +1010,12 @@ fn draw_heart(cx: f32, cy: f32, size: f32, color: Color) {
 /// Draw a heart outline (empty heart) at the given position.
 fn draw_heart_outline(cx: f32, cy: f32, size: f32, color: Color) {
     let r = size * 0.5;
-    let offset = r * 0.3;
-    draw_circle_lines(cx - offset, cy, r, 1.5, color);
-    draw_circle_lines(cx + offset, cy, r, 1.5, color);
-    // Triangle outline using lines
-    let tip = vec2(cx, cy + size * 0.9);
-    let left = vec2(cx - offset * 1.8, cy + offset * 0.5);
-    let right = vec2(cx + offset * 1.8, cy + offset * 0.5);
+    let off = size * 0.28;
+    draw_circle_lines(cx - off, cy - off * 0.2, r, 1.5, color);
+    draw_circle_lines(cx + off, cy - off * 0.2, r, 1.5, color);
+    let tip = vec2(cx, cy + size * 0.75);
+    let left = vec2(cx - off * 2.0, cy + off * 0.3);
+    let right = vec2(cx + off * 2.0, cy + off * 0.3);
     draw_line(left.x, left.y, tip.x, tip.y, 1.5, color);
     draw_line(right.x, right.y, tip.x, tip.y, 1.5, color);
 }
