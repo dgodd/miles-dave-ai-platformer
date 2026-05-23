@@ -143,7 +143,7 @@ struct Poop {
 
 impl Poop {
     fn new(x: f32, y: f32) -> Self {
-        Self { pos: vec2(x, y), vel_y: 100.0, eaten: false }
+        Self { pos: vec2(x, y), vel_y: 300.0, eaten: false }
     }
 
     fn rect(&self) -> Rect {
@@ -1703,13 +1703,10 @@ async fn main() {
                     }
 
                     if is_key_pressed(KeyCode::Q) {
-                        let facing_right = game.player.facing_right;
-                        let flip: f32 = if facing_right { 1.0 } else { -1.0 };
-                        let px = game.player.pos.x + game.player.size.x / 2.0 - 15.0 * flip * DOG_SCALE;
-                        let py = game.player.pos.y + game.player.size.y * 0.5;
-                        let mut poop = Poop::new(px, py);
-                        poop.vel_y = 300.0;
-                        game.poops.push(poop);
+                        let flip: f32 = if game.player.facing_right { 1.0 } else { -1.0 };
+                        let px = game.player.pos.x + game.player.size.x / 2.0 - 8.0 * flip;
+                        let py = game.player.pos.y + game.player.size.y;
+                        game.poops.push(Poop::new(px, py));
                     }
                 } else if game.death_timer <= 0.0 && is_key_pressed(KeyCode::Space) {
                     game.reset();
