@@ -1703,9 +1703,13 @@ async fn main() {
                     }
 
                     if is_key_pressed(KeyCode::Q) {
-                        let px = game.player.pos.x + game.player.size.x / 2.0;
-                        let py = game.player.pos.y + game.player.size.y;
-                        game.poops.push(Poop::new(px, py));
+                        let facing_right = game.player.facing_right;
+                        let flip: f32 = if facing_right { 1.0 } else { -1.0 };
+                        let px = game.player.pos.x + game.player.size.x / 2.0 - 15.0 * flip * DOG_SCALE;
+                        let py = game.player.pos.y + game.player.size.y * 0.5;
+                        let mut poop = Poop::new(px, py);
+                        poop.vel_y = 300.0;
+                        game.poops.push(poop);
                     }
                 } else if game.death_timer <= 0.0 && is_key_pressed(KeyCode::Space) {
                     game.reset();
