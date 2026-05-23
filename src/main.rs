@@ -418,9 +418,6 @@ impl Game {
         self.food_total = self.foods.len() as u32;
         self.goal_ball = goal_ball;
         self.level = next;
-        self.foods.clear();
-        self.food_collected = 0;
-        self.food_total = 0;
         self.poops.clear();
         self.particles.clear();
         self.level_complete = false;
@@ -442,9 +439,6 @@ impl Game {
         self.food_total = self.foods.len() as u32;
         self.goal_ball = goal_ball;
         self.level = level;
-        self.foods.clear();
-        self.food_collected = 0;
-        self.food_total = 0;
         self.poops.clear();
         self.particles.clear();
         self.level_complete = false;
@@ -957,6 +951,7 @@ pub fn draw_golden_tennis_ball(cx: f32, cy: f32, radius: f32) {
 
 /// Draw a piece of food at the given position.
 fn draw_food_sprite(x: f32, y: f32, kind: &FoodType) {
+    println!("draw_food_sprite: x={} y={} kind={:?}", x, y, kind);
     match kind {
         FoodType::Bacon => {
             // Pink/red wavy strip
