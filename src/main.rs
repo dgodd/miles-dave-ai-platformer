@@ -963,16 +963,21 @@ fn draw_food_sprite(x: f32, y: f32, kind: &FoodType) {
             draw_rectangle(x + 1.0 * s, y - 3.0 * s, 3.0 * s, 6.0 * s, Color::from_hex(0xf0b0a0));
         }
         FoodType::Chicken => {
-            // Drumstick with bone
+            // Drumstick — elongated meat with bone
             let cx = x + 1.0 * s;
-            draw_circle(cx, y, 7.0 * s, Color::from_hex(0xd4a030));
-            draw_circle(cx, y, 5.5 * s, Color::from_hex(0xe8c050));
-            draw_circle(cx - 1.0 * s, y - 1.0 * s, 3.0 * s, Color::from_hex(0xf0d860));
-            // Bone
-            draw_rectangle(x - 6.0 * s, y - 1.5 * s, 5.0 * s, 3.0 * s, Color::from_hex(0xf0f0e0));
-            draw_rectangle(x - 7.0 * s, y - 0.5 * s, 2.0 * s, 1.0 * s, Color::from_hex(0xf0f0e0));
-            // Highlight
-            draw_circle(cx + 2.0 * s, y - 2.0 * s, 2.0 * s, Color::from_rgba(255, 255, 200, 80));
+            // Meat (rounded oblong, wider at top, tapering down)
+            draw_circle(cx, y - 1.0 * s, 5.0 * s, Color::from_hex(0xc89028));
+            draw_circle(cx - 1.0 * s, y + 2.0 * s, 4.0 * s, Color::from_hex(0xc89028));
+            draw_rectangle(cx - 4.0 * s, y - 4.0 * s, 8.0 * s, 8.0 * s, Color::from_hex(0xd4a030));
+            draw_circle(cx, y - 1.0 * s, 4.0 * s, Color::from_hex(0xe0b040));
+            draw_circle(cx - 1.0 * s, y + 2.0 * s, 3.0 * s, Color::from_hex(0xe0b040));
+            // Breading texture
+            draw_circle(cx + 2.0 * s, y - 2.0 * s, 1.5 * s, Color::from_hex(0xe8c860));
+            draw_circle(cx - 3.0 * s, y + 1.0 * s, 1.0 * s, Color::from_hex(0xe8c860));
+            // Bone sticking out the bottom
+            draw_rectangle(cx - 1.5 * s, y + 5.0 * s, 3.0 * s, 5.0 * s, Color::from_hex(0xe8e8d8));
+            draw_circle(cx, y + 10.0 * s, 2.0 * s, Color::from_hex(0xf0f0e0));
+            draw_circle(cx, y + 9.0 * s, 1.5 * s, Color::from_hex(0xf8f8f0));
         }
         FoodType::Burger => {
             // Top bun
