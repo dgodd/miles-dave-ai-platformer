@@ -745,22 +745,22 @@ impl Game {
             String::new()
         };
         let level_text = format!("Level {}", self.level);
-        draw_text(&level_text, 12.0, 28.0, 20.0, Color::from_hex(0xaaaaaa));
+        draw_text(&level_text, 16.0, 36.0, 26.0, Color::from_hex(0xaaaaaa));
         if self.food_total > 0 {
-            draw_text(&food_info, 12.0, 52.0, 20.0, Color::from_hex(0xf0c860));
+            draw_text(&food_info, 16.0, 68.0, 26.0, Color::from_hex(0xf0c860));
         }
         // Hearts (filled and empty)
         for i in 0..3 {
-            let hx = 100.0 + i as f32 * 30.0;
-            let hy = 24.0;
+            let hx = 130.0 + i as f32 * 39.0;
+            let hy = 30.0;
             if i < self.hearts {
-                draw_heart(hx, hy, 10.0, Color::from_hex(0xe94560));
+                draw_heart(hx, hy, 13.0, Color::from_hex(0xe94560));
             } else {
-                draw_heart_outline(hx, hy, 10.0, Color::from_hex(0x663333));
+                draw_heart_outline(hx, hy, 13.0, Color::from_hex(0x663333));
             }
         }
 
-        draw_text("Arrow keys / WASD to move, Space to jump  |  Q to poop  |  R to reset", 12.0, screen_height() - 12.0, 16.0, Color::from_hex(0x666666));
+        draw_text("Arrow keys / WASD to move, Space to jump  |  Q to poop  |  R to reset", 16.0, screen_height() - 16.0, 21.0, Color::from_hex(0x666666));
 
         // ── Death overlay ───────────────────────────────────────────────
         if self.player.dead && self.death_timer <= 0.0 {
