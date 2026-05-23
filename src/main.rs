@@ -616,7 +616,11 @@ impl Game {
         }
 
         // ── HUD ─────────────────────────────────────────────────────────
-        let hud_text = format!("x: {:.0}  y: {:.0}  grounded: {}", self.player.pos.x, self.player.pos.y, self.player.grounded);
+        let ball_info = match &self.goal_ball {
+            Some(b) if !b.collected => format!("  Ball: ({:.0}, {:.0})", b.pos.x, b.pos.y),
+            _ => String::new(),
+        };
+        let hud_text = format!("x: {:.0}  y: {:.0}  grounded: {}{}", self.player.pos.x, self.player.pos.y, self.player.grounded, ball_info);
         draw_text(&hud_text, 12.0, 28.0, 20.0, Color::from_hex(0xaaaaaa));
         draw_text("Arrow keys / WASD to move, Space to jump  |  Q to poop  |  R to reset", 12.0, screen_height() - 12.0, 16.0, Color::from_hex(0x666666));
 
