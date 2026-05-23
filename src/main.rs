@@ -228,20 +228,15 @@ struct GoalBall {
     vel: Vec2,
     color: Color,
     collected: bool,
-    min_x: f32,
-    max_x: f32,
 }
 
 impl GoalBall {
     fn new(x: f32, y: f32, color: Color) -> Self {
-        let range = 150.0;
         Self {
             pos: vec2(x, y),
             vel: vec2(80.0, 0.0),
             color,
             collected: false,
-            min_x: x - range,
-            max_x: x + range,
         }
     }
 
@@ -1358,9 +1353,16 @@ async fn main() {
                         }
                     }
 
-                    // Bounce off walls (keep near end of level, within ball's range)
-                    if ball.pos.x - 8.0 < ball.min_x { ball.pos.x = ball.min_x + 8.0; ball.vel.x = 100.0; }
-                    if ball.pos.x + 8.0 > ball.max_x { ball.pos.x = ball.max_x - 8.0; ball.vel.x = -100.0; }
+                    // Bounce off walls (use the full width of the platform the ball is on)
+                    let plat_bounds = game.platforms.iter().find_map(|p| {
+                        let overlaps_x = ball.pos.x + 8.0 > p.pos.x && ball.pos.x - 8.0 < p.pos.x + p.size.x;
+                        let near_surface = (ball.pos.y - p.pos.y).abs() < 60.0;
+                        if overlaps_x && near_surface { Some((p.pos.x, p.pos.x + p.size.x)) } else { None }
+                    });
+                    if let Some((min_x, max_x)) = plat_bounds {
+                        if ball.pos.x - 8.0 < min_x { ball.pos.x = min_x + 8.0; ball.vel.x = 80.0; }
+                        if ball.pos.x + 8.0 > max_x { ball.pos.x = max_x - 8.0; ball.vel.x = -80.0; }
+                    }
 
                     // Player collision -> fetch!
                     if game.player.rect().intersect(ball.rect()).is_some() {
