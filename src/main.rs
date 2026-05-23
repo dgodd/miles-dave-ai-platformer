@@ -689,15 +689,22 @@ impl Game {
             let sx = ball.pos.x - cam.x;
             let sy = ball.pos.y - cam.y;
             let all_food = self.food_total == 0 || self.food_collected >= self.food_total;
-            let alpha = if all_food { 1.0 } else { 0.4 };
-            let ball_color = Color::new(ball.color.r, ball.color.g, ball.color.b, alpha);
-            let highlight = Color::new(
-                (ball.color.r * 1.1).min(1.0),
-                (ball.color.g * 1.1).min(1.0),
-                (ball.color.b * 1.1).min(1.0),
-                alpha,
-            );
-            draw_tennis_ball(sx, sy, 12.0, ball_color, highlight);
+            let display_color = if all_food {
+                ball.color
+            } else {
+                Color::from_hex(0x888888)
+            };
+            let display_highlight = if all_food {
+                Color::new(
+                    (ball.color.r * 1.1).min(1.0),
+                    (ball.color.g * 1.1).min(1.0),
+                    (ball.color.b * 1.1).min(1.0),
+                    1.0,
+                )
+            } else {
+                Color::from_hex(0xaaaaaa)
+            };
+            draw_tennis_ball(sx, sy, 12.0, display_color, display_highlight);
         }
 
         // ── Food ───────────────────────────────────────────────────────
