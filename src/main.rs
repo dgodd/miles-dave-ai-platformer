@@ -691,9 +691,16 @@ impl Game {
             if !food.collected {
                 let sx = food.pos.x - cam.x;
                 let sy = food.pos.y - cam.y;
-                // Bright background marker so food is always visible
-                draw_circle(sx, sy, 9.0, Color::from_rgba(255, 255, 200, 60));
-                draw_food_sprite(sx, sy, &food.kind);
+                // Highly visible food markers
+                let food_color = match food.kind {
+                    FoodType::Bacon => Color::from_hex(0xff6666),
+                    FoodType::Chicken => Color::from_hex(0xffdd44),
+                    FoodType::Burger => Color::from_hex(0xcc8844),
+                    FoodType::Pizza => Color::from_hex(0xff8833),
+                };
+                draw_circle(sx, sy, 8.0, food_color);
+                draw_circle(sx, sy, 6.0, Color::from_rgba(255, 255, 255, 120));
+                draw_rectangle(sx - 4.0, sy - 1.0, 8.0, 2.0, Color::from_rgba(0, 0, 0, 100));
             }
         }
 
