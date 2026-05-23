@@ -138,12 +138,13 @@ impl Spike {
 struct Poop {
     pos: Vec2,
     vel_y: f32,
+    lifetime: f32,
     eaten: bool,
 }
 
 impl Poop {
     fn new(x: f32, y: f32) -> Self {
-        Self { pos: vec2(x, y), vel_y: 200.0, eaten: false }
+        Self { pos: vec2(x, y), vel_y: 200.0, lifetime: 10.0, eaten: false }
     }
 
     fn rect(&self) -> Rect {
@@ -1682,11 +1683,17 @@ async fn main() {
                     }
 
                     // ── Poop physics ────────────────────────────────────────
-                    for poop in &mut game.poops {
-                        if !poop.eaten && poop.vel_y != 0.0 {
+                    game.poops.retain_mut(|poop| {
+                        if poop.eaten {
+                            return false;
+                        }
+                        poop.lifetime -= dt;
+                        if poop.lifetime <= 0.0 {
+                            return false;
+                        }
+                        if poop.vel_y != 0.0 {
                             poop.vel_y += GRAVITY * dt;
                             poop.pos.y += poop.vel_y * dt;
-                            // Check landing on a platform
                             for plat in &game.platforms {
                                 let at_x = poop.pos.x > plat.pos.x && poop.pos.x < plat.pos.x + plat.size.x;
                                 let hit = poop.pos.y + 5.0 >= plat.pos.y
@@ -1699,7 +1706,8 @@ async fn main() {
                                 }
                             }
                         }
-                    }
+                        true
+                    });
                 } else if game.death_timer <= 0.0 && is_key_pressed(KeyCode::Space) {
                     game.reset();
                 }
