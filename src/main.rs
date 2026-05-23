@@ -1675,7 +1675,7 @@ async fn main() {
             }
         } else {
             // Playing state
-                if !game.player.dead {
+                if !game.player.dead && !game.level_complete {
                     game.update_player(dt);
 
                     for baby in &mut game.babies {
