@@ -348,6 +348,7 @@ struct Game {
     particles: Vec<Particle>,
     death_timer: f32,
     death_message: String,
+    dev_mode: bool,
     state: GameState,
     goal_ball: Option<GoalBall>,
     lava_pits: Vec<Lava>,
@@ -378,6 +379,7 @@ impl Game {
             particles: vec![],
             death_timer: 0.0,
             death_message: String::new(),
+            dev_mode: false,
             state: GameState::Title,
             goal_ball,
             foods: vec![],
@@ -552,8 +554,10 @@ impl Game {
         // ── Spike collisions ────────────────────────────────────────────
         for spike in &self.spikes {
             if self.player.rect().intersect(spike.rect()).is_some() {
-                self.death_message = "Ouch! Spikes are not food".to_string();
-                self.die();
+                if !self.dev_mode {
+                    self.death_message = "Ouch! Spikes are not food".to_string();
+                    self.die();
+                }
                 break;
             }
         }
@@ -561,8 +565,10 @@ impl Game {
         // ── Lava collisions ─────────────────────────────────────────────
         for lava in &self.lava_pits {
             if self.player.rect().intersect(lava.rect()).is_some() {
-                self.death_message = "Fire is great till it burns you".to_string();
-                self.die();
+                if !self.dev_mode {
+                    self.death_message = "Fire is great till it burns you".to_string();
+                    self.die();
+                }
                 break;
             }
         }
@@ -579,8 +585,10 @@ impl Game {
         if !self.player.dead {
             for baby in &self.babies {
                 if self.player.rect().intersect(baby.rect()).is_some() {
-                    self.death_message = "The baby pulled your tail".to_string();
-                    self.die();
+                    if !self.dev_mode {
+                        self.death_message = "The baby pulled your tail".to_string();
+                        self.die();
+                    }
                     break;
                 }
             }
@@ -778,7 +786,7 @@ impl Game {
             let bx = (cw - bw) / 2.0;
             let start_y = ch * 0.38;
             let gap = 60.0;
-            let items = ["Resume", "Main Menu", "Quit"];
+            let items = ["Resume", "Main Menu", "Quit", "Dev Mode"];
 
             for (i, name) in items.iter().enumerate() {
                 let iy = start_y + i as f32 * gap;
@@ -786,9 +794,20 @@ impl Game {
                 let bg = if hovered { Color::from_hex(0x533483) } else { Color::from_hex(0x16213e) };
                 draw_rectangle(bx, iy, bw, bh, bg);
                 draw_rectangle(bx + 2.0, iy + 2.0, bw - 4.0, bh - 4.0, Color::from_hex(0x0f3460));
-                let ls = measure_text(name, None, 28, 1.0);
-                draw_text(name, bx + (bw - ls.width) / 2.0, iy + bh / 2.0 + 10.0,
-                          28.0, Color::from_hex(0xcccccc));
+                // Show ON/OFF state for Dev Mode
+                let label = if *name == "Dev Mode" {
+                    if self.dev_mode { "Dev Mode: ON" } else { "Dev Mode: OFF" }
+                } else {
+                    name
+                };
+                let color = if *name == "Dev Mode" && self.dev_mode {
+                    Color::from_hex(0x55dd55)
+                } else {
+                    Color::from_hex(0xcccccc)
+                };
+                let ls = measure_text(label, None, 28, 1.0);
+                draw_text(label, bx + (bw - ls.width) / 2.0, iy + bh / 2.0 + 10.0,
+                          28.0, color);
             }
         }
     }
@@ -1584,6 +1603,10 @@ async fn main() {
                     }
                     if mx >= bx && mx <= bx + bw && my >= start_y + gap * 2.0 && my <= start_y + gap * 2.0 + bh {
                         std::process::exit(0); // Quit
+                    }
+                    // Dev Mode toggle
+                    if mx >= bx && mx <= bx + bw && my >= start_y + gap * 3.0 && my <= start_y + gap * 3.0 + bh {
+                        game.dev_mode = !game.dev_mode;
                     }
                 }
                 if is_key_pressed(KeyCode::Escape) {
