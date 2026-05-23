@@ -306,6 +306,7 @@ enum GameState {
     Title,
     Playing,
     Tutorial,
+    LevelSelect,
 }
 
 struct Game {
@@ -377,6 +378,24 @@ impl Game {
         self.lava_pits = lava_pits;
         self.goal_ball = goal_ball;
         self.level = next;
+        self.poops.clear();
+        self.particles.clear();
+        self.level_complete = false;
+        self.complete_timer = 0.0;
+        self.player.dead = false;
+        self.state = GameState::Playing;
+    }
+
+    fn start_level(&mut self, level: u32) {
+        let floor_y = screen_height() - 40.0;
+        let (platforms, spikes, babies, lava_pits, goal_ball) = Self::build_level(level, floor_y);
+        self.player = Player::new(80.0, floor_y - PLAYER_HEIGHT);
+        self.platforms = platforms;
+        self.spikes = spikes;
+        self.babies = babies;
+        self.lava_pits = lava_pits;
+        self.goal_ball = goal_ball;
+        self.level = level;
         self.poops.clear();
         self.particles.clear();
         self.level_complete = false;
@@ -539,6 +558,10 @@ impl Game {
                 self.draw_tutorial_screen();
                 return;
             }
+            GameState::LevelSelect => {
+                self.draw_level_select_screen();
+                return;
+            }
             GameState::Playing => {}
         }
 
@@ -697,7 +720,7 @@ impl Game {
         let bx = (cw - bw) / 2.0;
         let by = ch * 0.62;
         let gap = 64.0;
-        let button_names = ["Play", "Tutorial", "Quit"];
+        let button_names = ["Play", "Levels", "Tutorial", "Quit"];
 
         for (i, name) in button_names.iter().enumerate() {
             let iy = by + i as f32 * gap;
@@ -745,6 +768,47 @@ impl Game {
         let label = "Back (Escape)";
         let ls = measure_text(label, None, 24, 1.0);
         draw_text(label, bx + (bw - ls.width) / 2.0, by + bh / 2.0 + 8.0, 24.0, Color::from_hex(0xcccccc));
+    }
+
+    // ── Level select screen ─────────────────────────────────────────────
+    fn draw_level_select_screen(&self) {
+        let cw = screen_width();
+        let ch = screen_height();
+
+        draw_text("SELECT LEVEL", (cw - measure_text("SELECT LEVEL", None, 48, 1.0).width) / 2.0,
+                  ch * 0.15, 48.0, Color::from_hex(0xe94560));
+
+        let bw = 160.0;
+        let bh = 120.0;
+        let cols = 3;
+        let spacing = 40.0;
+        let total_w = cols as f32 * bw + (cols - 1) as f32 * spacing;
+        let start_x = (cw - total_w) / 2.0;
+        let start_y = ch * 0.35;
+
+        for i in 0..2 {
+            let col = i % cols;
+            let row = i / cols;
+            let bx = start_x + col as f32 * (bw + spacing);
+            let by = start_y + row as f32 * (bh + spacing);
+            let hovered = is_mouse_over(bx, by, bw, bh);
+            let bg = if hovered { Color::from_hex(0x533483) } else { Color::from_hex(0x16213e) };
+            draw_rectangle(bx, by, bw, bh, bg);
+            draw_rectangle(bx + 2.0, by + 2.0, bw - 4.0, bh - 4.0, Color::from_hex(0x0f3460));
+            let label = format!("Level {}", i + 1);
+            let ls = measure_text(&label, None, 28, 1.0);
+            draw_text(&label, bx + (bw - ls.width) / 2.0, by + bh / 2.0 + 10.0, 28.0, Color::from_hex(0xcccccc));
+        }
+
+        let back_bw = 180.0;
+        let back_bh = 44.0;
+        let back_bx = (cw - back_bw) / 2.0;
+        let back_by = ch * 0.82;
+        draw_rectangle(back_bx, back_by, back_bw, back_bh, Color::from_hex(0x16213e));
+        draw_rectangle(back_bx + 2.0, back_by + 2.0, back_bw - 4.0, back_bh - 4.0, Color::from_hex(0x0f3460));
+        let label = "Back (Escape)";
+        let ls = measure_text(label, None, 24, 1.0);
+        draw_text(label, back_bx + (back_bw - ls.width) / 2.0, back_by + back_bh / 2.0 + 8.0, 24.0, Color::from_hex(0xcccccc));
     }
 }
 
@@ -1199,7 +1263,7 @@ async fn main() {
             true
         });
 
-        if game.state == GameState::Title || game.state == GameState::Tutorial {
+        if game.state == GameState::Title || game.state == GameState::Tutorial || game.state == GameState::LevelSelect {
             // ── Title golden particles ─────────────────────────────────
             if game.state == GameState::Title {
                 let cw = screen_width();
@@ -1224,34 +1288,77 @@ async fn main() {
                 }
             }
 
-            // ── Title / Tutorial screen input ────────────────────────
+            if game.state == GameState::Title {
+                // ── Title screen input ─────────────────────────────────
                 if is_mouse_button_pressed(MouseButton::Left) {
                     let (mx, my) = mouse_position();
                     let cw = screen_width();
                     let ch = screen_height();
-                    let bw = 200.0;
+                    let bw = 220.0;
                     let bh = 50.0;
                     let bx = (cw - bw) / 2.0;
                     let by = ch * 0.62;
-                    let gap = 60.0;
+                    let gap = 64.0;
 
-                    // Play button
                     if mx >= bx && mx <= bx + bw && my >= by && my <= by + bh {
-                        game.reset();
+                        game.reset(); // Play
                     }
-                    // Tutorial button
                     if mx >= bx && mx <= bx + bw && my >= by + gap && my <= by + gap + bh {
+                        game.state = GameState::LevelSelect; // Levels
+                    }
+                    if mx >= bx && mx <= bx + bw && my >= by + gap * 2.0 && my <= by + gap * 2.0 + bh {
                         game.state = GameState::Tutorial;
                     }
-                    // Quit button
-                    if mx >= bx && mx <= bx + bw && my >= by + gap * 2.0 && my <= by + gap * 2.0 + bh {
+                    if mx >= bx && mx <= bx + bw && my >= by + gap * 3.0 && my <= by + gap * 3.0 + bh {
                         std::process::exit(0);
                     }
                 }
+                if is_key_pressed(KeyCode::Escape) {
+                    std::process::exit(0);
+                }
+            } else if game.state == GameState::LevelSelect {
+                // ── Level select input ─────────────────────────────────
+                if is_mouse_button_pressed(MouseButton::Left) {
+                    let (mx, my) = mouse_position();
+                    let cw = screen_width();
+                    let ch = screen_height();
+                    let bw = 160.0;
+                    let bh = 120.0;
+                    let cols = 3;
+                    let spacing = 40.0;
+                    let total_w = cols as f32 * bw + (cols - 1) as f32 * spacing;
+                    let start_x = (cw - total_w) / 2.0;
+                    let start_y = ch * 0.35;
 
+                    for i in 0..2 {
+                        let col = i % cols;
+                        let row = i / cols;
+                        let bx = start_x + col as f32 * (bw + spacing);
+                        let by = start_y + row as f32 * (bh + spacing);
+                        if mx >= bx && mx <= bx + bw && my >= by && my <= by + bh {
+                            game.start_level(i as u32 + 1);
+                            break;
+                        }
+                    }
+
+                    // Back button
+                    let back_bw = 180.0;
+                    let back_bh = 44.0;
+                    let back_bx = (cw - back_bw) / 2.0;
+                    let back_by = ch * 0.82;
+                    if mx >= back_bx && mx <= back_bx + back_bw && my >= back_by && my <= back_by + back_bh {
+                        game.state = GameState::Title;
+                    }
+                }
                 if is_key_pressed(KeyCode::Escape) {
                     game.state = GameState::Title;
                 }
+            } else {
+                // ── Tutorial screen input ──────────────────────────────
+                if is_key_pressed(KeyCode::Escape) {
+                    game.state = GameState::Title;
+                }
+            }
         } else {
             // Playing state
                 if !game.player.dead {
