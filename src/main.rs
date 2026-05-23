@@ -55,6 +55,7 @@ struct Player {
     facing_right: bool,
     dead: bool,
     walk_time: f32,
+    super_mode: bool,
 }
 
 impl Player {
@@ -69,6 +70,7 @@ impl Player {
             facing_right: true,
             dead: false,
             walk_time: 0.0,
+            super_mode: false,
         }
     }
 
@@ -258,6 +260,66 @@ impl Baby {
     }
 }
 
+// ── Toddler Boss ────────────────────────────────────────────────────────────
+
+/// A gigantic toddler boss — 1.5x taller than Super Dog.
+struct ToddlerBoss {
+    pos: Vec2,
+    size: Vec2,
+    health: f32,
+    max_health: f32,
+    facing_right: bool,
+    walk_time: f32,
+    attack_timer: f32,
+    dead: bool,
+    death_timer: f32,
+}
+
+impl ToddlerBoss {
+    fn new(x: f32, y: f32) -> Self {
+        let scale = 225.0;
+        Self {
+            pos: vec2(x, y),
+            size: vec2(scale * 0.6, scale),
+            health: 30.0,
+            max_health: 30.0,
+            facing_right: false,
+            walk_time: 0.0,
+            attack_timer: 0.0,
+            dead: false,
+            death_timer: 0.0,
+        }
+    }
+
+    fn rect(&self) -> Rect {
+        Rect::new(self.pos.x, self.pos.y, self.size.x, self.size.y)
+    }
+
+    fn update(&mut self, dt: f32, player_pos: Vec2) {
+        if self.dead {
+            self.death_timer -= dt;
+            return;
+        }
+        self.walk_time += dt;
+        self.attack_timer -= dt;
+        let dx = player_pos.x - self.pos.x;
+        self.facing_right = dx > 0.0;
+        let speed = 60.0;
+        self.pos.x += dx.signum() * speed * dt;
+        self.pos.x = self.pos.x.clamp(0.0, 8000.0);
+    }
+
+    fn take_damage(&mut self, amount: f32) {
+        if self.dead { return; }
+        self.health -= amount;
+        if self.health <= 0.0 {
+            self.health = 0.0;
+            self.dead = true;
+            self.death_timer = 2.0;
+        }
+    }
+}
+
 /// Holds all the level data returned by build_level / level_1 / level_2.
 type LevelData = (Vec<Platform>, Vec<Spike>, Vec<Baby>, Vec<Lava>, Vec<Food>, Option<GoalBall>);
 
@@ -379,6 +441,8 @@ struct Game {
     pee_mode: bool,
     done_pee: bool,
     tree_x: f32,
+    boss_mode: bool,
+    boss: Option<ToddlerBoss>,
 }
 
 impl Game {
@@ -417,6 +481,8 @@ impl Game {
             pee_mode: false,
             done_pee: false,
             tree_x: 0.0,
+            boss_mode: false,
+            boss: None,
         }
     }
 
@@ -677,6 +743,37 @@ impl Game {
         // ── Background ──────────────────────────────────────────────────
         clear_background(Color::from_hex(0x1a1a2e));
 
+        // ── Boss mode background ────────────────────────────────
+        if self.boss_mode {
+            let cw = screen_width();
+            let ch = screen_height();
+            // Sky gradient
+            for i in 0..20 {
+                let t = i as f32 / 20.0;
+                let r = (20.0 * (1.0 - t) + 60.0 * t) as u8;
+                let g = (30.0 * (1.0 - t) + 120.0 * t) as u8;
+                let b = (60.0 * (1.0 - t) + 180.0 * t) as u8;
+                draw_rectangle(0.0, ch * t / 2.0, cw, ch / 40.0 + 1.0,
+                               Color::from_rgba(r, g, b, 255));
+            }
+            // Sun
+            draw_circle(cw * 0.85, ch * 0.12, 40.0, Color::from_hex(0xffdd44));
+            draw_circle(cw * 0.85, ch * 0.12, 35.0, Color::from_hex(0xffee66));
+            // Clouds
+            for (cx, cy, r) in &[(0.15, 0.18, 35.0), (0.35, 0.12, 30.0), (0.65, 0.20, 25.0)] {
+                draw_circle(cw * cx, ch * cy, *r, Color::from_rgba(200, 200, 220, 180));
+                draw_circle(cw * cx - r * 0.5, ch * cy + r * 0.2, *r * 0.7, Color::from_rgba(200, 200, 220, 180));
+                draw_circle(cw * cx + r * 0.5, ch * cy + r * 0.1, *r * 0.8, Color::from_rgba(200, 200, 220, 180));
+            }
+            // Green hills
+            draw_circle(cw * 0.3, ch * 0.95, 350.0, Color::from_hex(0x3a7a3a));
+            draw_circle(cw * 0.7, ch * 0.95, 400.0, Color::from_hex(0x4a8a3a));
+            draw_circle(cw * 1.0, ch * 0.95, 300.0, Color::from_hex(0x2a6a2a));
+            // Grass
+            draw_rectangle(0.0, ch * 0.85, cw, ch * 0.15, Color::from_hex(0x4a9a3a));
+            draw_rectangle(0.0, ch * 0.88, cw, ch * 0.12, Color::from_hex(0x3a8a2a));
+        }
+
         match self.state {
             GameState::Title => {
                 self.draw_title_screen();
@@ -811,7 +908,11 @@ impl Game {
             if flash {
                 let psx = self.player.pos.x + self.player.size.x / 2.0 - cam.x;
                 let psy = self.player.pos.y + self.player.size.y / 2.0 - cam.y;
-                draw_dog_sprite(psx, psy, &self.player, DOG_SCALE);
+                if self.player.super_mode {
+                    draw_super_dog_sprite(psx, psy, &self.player, DOG_SCALE);
+                } else {
+                    draw_dog_sprite(psx, psy, &self.player, DOG_SCALE);
+                }
             }
         }
 
@@ -823,21 +924,44 @@ impl Game {
             for plat in &self.platforms {
                 if self.tree_x > plat.pos.x && self.tree_x < plat.pos.x + plat.size.x {
                     tree_ground = plat.pos.y - cam.y;
+                    // Draw the platform under the tree
+                    let sx = plat.pos.x - cam.x;
+                    let sy = plat.pos.y - cam.y;
+                    draw_rectangle(sx, sy, plat.size.x, plat.size.y, Color::from_hex(0x16213e));
+                    draw_rectangle(sx + 2.0, sy + 2.0, plat.size.x - 4.0, plat.size.y - 4.0, Color::from_hex(0x0f3460));
+                    draw_line(sx + 4.0, sy + 1.0, sx + plat.size.x - 4.0, sy + 1.0, 2.0, Color::from_hex(0x533483));
                     break;
                 }
             }
             draw_tree(tree_cx - 30.0, tree_ground, tree_h);
         }
 
-        // ── Pee stream (level 4 final scene) ───────────────────────
-        if self.pee_mode && !self.done_pee && is_key_down(KeyCode::E) {
-            let flip: f32 = if self.player.facing_right { 1.0 } else { -1.0 };
-            let dog_bum_x = self.player.pos.x + self.player.size.x / 2.0 - 15.0 * flip * DOG_SCALE;
-            let dog_bum_y = self.player.pos.y + self.player.size.y / 2.0 - 5.0;
-            let sx = dog_bum_x - cam.x - 6.0;
-            let sy = dog_bum_y - cam.y;
-            draw_rectangle(sx, sy, 12.0, 100.0, Color::from_hex(0xcccc00));
-            draw_rectangle(sx + 1.0, sy, 10.0, 100.0, Color::from_hex(0xeeee44));
+        // ── Pee stream is only visible via falling particle droplets ─
+        //     (spawned in the main loop when holding E in pee_mode)
+
+        // ── Toddler boss ───────────────────────────────────────────────
+        if self.boss_mode {
+            if let Some(boss) = &self.boss {
+                let bx = boss.pos.x + boss.size.x / 2.0 - cam.x;
+                let by = boss.pos.y + boss.size.y / 2.0 - cam.y;
+                draw_toddler_boss_sprite(bx, by, boss);
+
+                // Health bar
+                if !boss.dead {
+                    let hb_w = 200.0;
+                    let hb_h = 18.0;
+                    let hb_x = screen_width() / 2.0 - hb_w / 2.0;
+                    let hb_y = 20.0;
+                    draw_rectangle(hb_x, hb_y, hb_w, hb_h, Color::from_hex(0x333333));
+                    let hp_ratio = boss.health / boss.max_health;
+                    let hp_color = if hp_ratio > 0.5 { Color::from_hex(0xdd3333) } else { Color::from_hex(0xcc2222) };
+                    draw_rectangle(hb_x + 2.0, hb_y + 2.0, (hb_w - 4.0) * hp_ratio, hb_h - 4.0, hp_color);
+                    let boss_label = format!("ANGRY TODDLER");
+                    let bls = measure_text(&boss_label, None, 14, 1.0);
+                    draw_text(&boss_label, hb_x + (hb_w - bls.width) / 2.0, hb_y + hb_h - 4.0,
+                              14.0, Color::from_hex(0xffffff));
+                }
+            }
         }
 
         // ── Particles ──────────────────────────────────────────────────
@@ -951,16 +1075,12 @@ impl Game {
             draw_text(msg, sign_x + (sign_w - msg_size.width) / 2.0, sign_y + sign_h / 2.0 + 6.0,
                       18.0, Color::from_hex(0xf0c860));
 
-            // Roast chicken on the ground near the tree
-            let chicken_x = (self.tree_x - 80.0) - cam.x;
-            let chicken_y = tree_ground - 20.0;
-            draw_food_sprite(chicken_x, chicken_y, &FoodType::Chicken);
-
-            // Small screen-space prompt
-            let sub = "Press Space to return to menu";
-            let ss = measure_text(sub, None, 22, 1.0);
-            draw_text(sub, (screen_width() - ss.width) / 2.0, screen_height() - 30.0,
-                      22.0, Color::from_hex(0xaaaaaa));
+            // Roast chicken on the ground near the tree (until eaten)
+            if !self.player.super_mode {
+                let chicken_x = (self.tree_x - 80.0) - cam.x;
+                let chicken_y = tree_ground - 20.0;
+                draw_rotisserie_chicken(chicken_x, chicken_y);
+            }
         }
 
         // ── Pause overlay ───────────────────────────────────────────────
@@ -1166,7 +1286,7 @@ fn draw_golden_tennis_ball(cx: f32, cy: f32, radius: f32) {
 fn draw_tree(x: f32, y: f32, h: f32) {
     let trunk_w = h * 0.12;
     let trunk_h = h * 0.5;
-    let canopy_r = h * 0.5;
+    let canopy_r = h * 0.25;
     // Trunk
     draw_rectangle(x - trunk_w / 2.0, y - trunk_h, trunk_w, trunk_h, Color::from_hex(0x8b5e3c));
     // Canopy
@@ -1420,6 +1540,213 @@ fn draw_back_leg(x: f32, y: f32, grounded: bool, s: f32) {
     }
 }
 
+// ── Super Dog sprite drawing ────────────────────────────────────────────────
+
+/// Draw the Super Dog — big, muscular, standing upright like a superhero.
+fn draw_super_dog_sprite(cx: f32, cy: f32, p: &Player, s: f32) {
+    let flip = if p.facing_right { 1.0 } else { -1.0 };
+    let t = p.walk_time;
+
+    // Tree-sized: scale to match tree height (PLAYER_HEIGHT * DOG_SCALE * 3.0)
+    let hero_scale = s * 2.8;
+    let bx = cx;
+    // Offset so feet touch bottom of player rect (cy + PLAYER_HEIGHT/2 = cy + 18)
+    let by = cy + 18.0 - 10.0 * hero_scale;
+    let ox = |dx: f32| bx + dx * flip * hero_scale;
+    let bob = (t * 3.0).sin() * 1.0 * hero_scale;
+
+    let chest_top = by - 16.0 * hero_scale + bob;
+    let chest_bot = by - 2.0 * hero_scale + bob;
+    let chest_w = 18.0 * hero_scale;
+    let waist_w = 12.0 * hero_scale;
+    let ab_h = (chest_bot - chest_top) / 6.0;
+
+    let super_fur = Color::from_hex(0xd4a050);
+    let super_fur_light = Color::from_hex(0xe8c070);
+    let super_fur_shadow = Color::from_hex(0xb07830);
+
+    // ── Cape (behind body) ──────────────────────────────────────────
+    let cape_color = Color::from_hex(0xcc2233);
+    let cape_flutter = (t * 6.0).sin() * 4.0 * hero_scale;
+    draw_triangle(
+        vec2(ox(-4.0), chest_top),
+        vec2(ox(-12.0 + cape_flutter / hero_scale * 0.3 * flip), chest_bot + 8.0 * hero_scale),
+        vec2(ox(4.0), chest_bot + 6.0 * hero_scale),
+        cape_color,
+    );
+    draw_triangle(
+        vec2(ox(-6.0), chest_top),
+        vec2(ox(-16.0 + cape_flutter / hero_scale * 0.5 * flip), chest_bot + 4.0 * hero_scale),
+        vec2(ox(-8.0), chest_bot + 2.0 * hero_scale),
+        Color::from_hex(0xaa1122),
+    );
+
+    // ── Torso: broad chest tapering to waist ────────────────────────
+    draw_triangle(
+        vec2(ox(-chest_w / 2.0 / hero_scale), chest_top),
+        vec2(ox(chest_w / 2.0 / hero_scale), chest_top),
+        vec2(ox(-waist_w / 2.0 / hero_scale), chest_bot),
+        super_fur,
+    );
+    draw_triangle(
+        vec2(ox(chest_w / 2.0 / hero_scale), chest_top),
+        vec2(ox(waist_w / 2.0 / hero_scale), chest_bot),
+        vec2(ox(-waist_w / 2.0 / hero_scale), chest_bot),
+        super_fur,
+    );
+
+    // Chest highlight
+    draw_triangle(
+        vec2(ox(-4.0), chest_top + 2.0 * hero_scale),
+        vec2(ox(4.0), chest_top + 2.0 * hero_scale),
+        vec2(ox(-2.0), chest_bot - 4.0 * hero_scale),
+        super_fur_light,
+    );
+
+    // ── Six-pack abs ────────────────────────────────────────────────
+    let ab_center = (chest_top + chest_bot) / 2.0 + 2.0 * hero_scale;
+    for row in 0..3 {
+        for col in 0..2 {
+            let ab_x = ox(-1.5 + col as f32 * 3.0);
+            let ab_y = ab_center + row as f32 * ab_h;
+            draw_rectangle(ab_x - 2.0 * hero_scale, ab_y - 1.5 * hero_scale,
+                           4.0 * hero_scale, 3.0 * hero_scale, super_fur_shadow);
+            draw_rectangle(ab_x - 1.5 * hero_scale, ab_y - 1.0 * hero_scale,
+                           3.0 * hero_scale, 2.0 * hero_scale, super_fur_light);
+        }
+    }
+
+    // ── Shoulders ───────────────────────────────────────────────────
+    draw_circle(ox(-chest_w / 2.0 / hero_scale), chest_top + 2.0 * hero_scale,
+                6.0 * hero_scale, super_fur);
+    draw_circle(ox(chest_w / 2.0 / hero_scale), chest_top + 2.0 * hero_scale,
+                6.0 * hero_scale, super_fur);
+    draw_circle(ox(-chest_w / 2.0 / hero_scale), chest_top + 2.0 * hero_scale,
+                5.0 * hero_scale, super_fur_light);
+    draw_circle(ox(chest_w / 2.0 / hero_scale), chest_top + 2.0 * hero_scale,
+                5.0 * hero_scale, super_fur_light);
+
+    // ── Chest emblem ────────────────────────────────────────────────
+    let emblem_y = chest_top + 3.0 * hero_scale;
+    draw_circle(ox(0.0), emblem_y, 5.0 * hero_scale, Color::from_hex(0xdd4444));
+    draw_circle(ox(0.0), emblem_y, 4.0 * hero_scale, Color::from_hex(0xffcc00));
+    draw_text("S", ox(0.0) - 3.0 * hero_scale, emblem_y + 3.5 * hero_scale,
+              5.0 * hero_scale, Color::from_hex(0xdd4444));
+
+    // ── Arms (muscular front legs, raised hero pose) ────────────────
+    let arm_swing = (t * 4.0).sin() * 3.0 * hero_scale;
+    // Right arm (raised up)
+    draw_rectangle(ox(9.0) - 2.0 * hero_scale, chest_top - 4.0 * hero_scale + arm_swing,
+                   4.0 * hero_scale, 10.0 * hero_scale, super_fur);
+    draw_circle(ox(9.0), chest_top - 4.0 * hero_scale + arm_swing, 3.5 * hero_scale, super_fur_light);
+    draw_rectangle(ox(3.0) - 1.5 * hero_scale, chest_bot - 6.0 * hero_scale,
+                   3.0 * hero_scale, 4.0 * hero_scale, super_fur);
+    // Left arm (raised up)
+    draw_rectangle(ox(-9.0) - 2.0 * hero_scale, chest_top - 4.0 * hero_scale - arm_swing,
+                   4.0 * hero_scale, 10.0 * hero_scale, super_fur);
+    draw_circle(ox(-9.0), chest_top - 4.0 * hero_scale - arm_swing, 3.5 * hero_scale, super_fur_light);
+    draw_rectangle(ox(-3.0) - 1.5 * hero_scale, chest_bot - 6.0 * hero_scale,
+                   3.0 * hero_scale, 4.0 * hero_scale, super_fur);
+
+    // ── Legs (thick hind legs, standing) ─────────────────────────────
+    let leg_swing = (t * 4.0).sin() * 2.0 * hero_scale;
+    // Right leg
+    let rl_x = ox(5.0);
+    draw_rectangle(rl_x - 3.0 * hero_scale, chest_bot + leg_swing,
+                   6.0 * hero_scale, 12.0 * hero_scale, super_fur);
+    draw_circle(rl_x, chest_bot + 12.0 * hero_scale, 4.5 * hero_scale, super_fur_shadow);
+    draw_circle(rl_x, chest_bot + 12.0 * hero_scale, 3.5 * hero_scale, super_fur);
+    // Left leg
+    let ll_x = ox(-5.0);
+    draw_rectangle(ll_x - 3.0 * hero_scale, chest_bot - leg_swing,
+                   6.0 * hero_scale, 12.0 * hero_scale, super_fur);
+    draw_circle(ll_x, chest_bot - leg_swing + 12.0 * hero_scale, 4.5 * hero_scale, super_fur_shadow);
+    draw_circle(ll_x, chest_bot - leg_swing + 12.0 * hero_scale, 3.5 * hero_scale, super_fur);
+
+    // ── Tail (wagging behind) ────────────────────────────────────────
+    let tail_wag = (t * 6.0).sin() * 6.0 * hero_scale;
+    draw_line(ox(-10.0), chest_bot - 2.0 * hero_scale,
+              ox(-10.0 - 2.0), chest_bot - 6.0 * hero_scale - tail_wag,
+              4.0 * hero_scale, super_fur);
+    draw_circle(ox(-10.0 - 2.0), chest_bot - 6.0 * hero_scale - tail_wag,
+                3.0 * hero_scale, super_fur_light);
+
+    // ── Head ────────────────────────────────────────────────────────
+    let head_cx = ox(0.0);
+    let head_cy = chest_top - 6.0 * hero_scale + bob;
+    let hx_off = |dx: f32| head_cx + dx * flip * hero_scale;
+    let head_r = 9.0 * hero_scale;
+
+    // Head base (drawn before ears so ears sit on top)
+    draw_circle(head_cx, head_cy, head_r, super_fur);
+    draw_circle(hx_off(5.0), head_cy + 2.0 * hero_scale, 5.0 * hero_scale, super_fur);
+    draw_circle(hx_off(6.0), head_cy + 2.0 * hero_scale, 3.5 * hero_scale, super_fur_light);
+    // Snout
+    draw_circle(hx_off(7.0), head_cy + 3.0 * hero_scale, 4.0 * hero_scale, super_fur);
+    draw_circle(hx_off(7.0), head_cy + 4.0 * hero_scale, 3.0 * hero_scale, super_fur_light);
+
+    // Ears (pointy, heroic — drawn on top of head)
+    let ear_wag = (t * 5.0).sin() * 3.0 * hero_scale;
+    // Right ear
+    draw_triangle(
+        vec2(hx_off(5.0), head_cy - head_r + 3.0 * hero_scale),
+        vec2(hx_off(12.0 + ear_wag / hero_scale), head_cy - head_r - 8.0 * hero_scale),
+        vec2(hx_off(10.0), head_cy - 2.0 * hero_scale),
+        EAR_COLOR,
+    );
+    // Left ear
+    draw_triangle(
+        vec2(hx_off(-5.0), head_cy - head_r + 3.0 * hero_scale),
+        vec2(hx_off(-12.0 - ear_wag / hero_scale), head_cy - head_r - 8.0 * hero_scale),
+        vec2(hx_off(-4.0), head_cy - 2.0 * hero_scale),
+        EAR_COLOR,
+    );
+
+    // ── Hero mask ───────────────────────────────────────────────────
+    let mask_color = Color::from_hex(0x1a1a2e);
+    // Centered mask covering both eyes
+    draw_rectangle(hx_off(-5.0), head_cy - 4.0 * hero_scale,
+                   13.0 * hero_scale, 4.5 * hero_scale, mask_color);
+    // Mask edges curve slightly
+    draw_circle(hx_off(-5.0), head_cy - 2.0 * hero_scale, 3.0 * hero_scale, mask_color);
+    draw_circle(hx_off(8.0), head_cy - 2.0 * hero_scale, 3.0 * hero_scale, mask_color);
+    // Eye holes (showing fur through mask)
+    draw_circle(hx_off(-0.5), head_cy - 1.5 * hero_scale, 3.0 * hero_scale, super_fur);
+    draw_circle(hx_off(5.5), head_cy - 1.5 * hero_scale, 3.0 * hero_scale, super_fur);
+
+    // Eyes (inside the mask eye holes)
+    draw_circle(hx_off(-0.5), head_cy - 1.5 * hero_scale, 2.5 * hero_scale, EYE_WHITE);
+    draw_circle(hx_off(5.5), head_cy - 1.5 * hero_scale, 2.5 * hero_scale, EYE_WHITE);
+    let p_off = if p.facing_right { hero_scale } else { -hero_scale };
+    draw_circle(hx_off(-0.5 + p_off / hero_scale), head_cy - 1.5 * hero_scale,
+                1.8 * hero_scale, EYE_PUPIL);
+    draw_circle(hx_off(5.5 + p_off / hero_scale), head_cy - 1.5 * hero_scale,
+                1.8 * hero_scale, EYE_PUPIL);
+    draw_circle(hx_off(0.0 + p_off * 0.5 / hero_scale), head_cy - 3.0 * hero_scale,
+                0.8 * hero_scale, WHITE);
+    draw_circle(hx_off(6.0 + p_off * 0.5 / hero_scale), head_cy - 3.0 * hero_scale,
+                0.8 * hero_scale, WHITE);
+
+    // Nose
+    draw_circle(hx_off(8.5), head_cy + 3.0 * hero_scale, 2.5 * hero_scale, NOSE_COLOR);
+    draw_circle(hx_off(8.3), head_cy + 2.5 * hero_scale, 0.7 * hero_scale, Color::from_hex(0x3a2510));
+
+    // Mouth (confident grin)
+    draw_line(hx_off(3.0), head_cy + 6.0 * hero_scale,
+              hx_off(8.0), head_cy + 6.0 * hero_scale, 2.0 * hero_scale, FUR_DARK);
+    // Confident smirk curve
+    draw_line(hx_off(5.0), head_cy + 6.0 * hero_scale,
+              hx_off(6.5), head_cy + 5.0 * hero_scale, 1.5 * hero_scale, FUR_DARK);
+
+    // ── Heroic collar ────────────────────────────────────────────────
+    let collar_color = Color::from_hex(0xdd4444);
+    draw_rectangle(hx_off(-3.0), head_cy + 8.0 * hero_scale,
+                   10.0 * hero_scale, 3.0 * hero_scale, collar_color);
+    // Gold badge
+    draw_circle(hx_off(2.0), head_cy + 9.5 * hero_scale,
+                2.5 * hero_scale, Color::from_hex(0xffcc00));
+}
+
 // ── Baby sprite drawing ──────────────────────────────────────────────────────
 
 /// Draw a crawling baby at the given centre position.
@@ -1573,6 +1900,151 @@ fn draw_poop_sprite(x: f32, y: f32) {
     // Highlight on top
     draw_circle(x, y - 2.0, 3.0, Color::from_hex(0x7a4e28));
     draw_circle(x - 1.0, y - 3.0, 2.0, Color::from_hex(0x8c5c30));
+}
+
+
+// ── Rotisserie chicken drawing ──────────────────────────────────────────────
+
+/// Draw a whole golden rotisserie chicken on a spit at the given position.
+fn draw_rotisserie_chicken(x: f32, y: f32) {
+    // ── Spit (vertical rod) ─────────────────────────────────────────
+    let spit_color = Color::from_hex(0x888888);
+    draw_line(x, y - 18.0, x, y + 18.0, 2.0, spit_color);
+    // Spit handle at top
+    draw_rectangle(x - 4.0, y - 20.0, 8.0, 4.0, Color::from_hex(0x666666));
+
+    // ── Body (oval, golden brown) ───────────────────────────────────
+    draw_ellipse(x, y, 14.0, 10.0, 0.0, Color::from_hex(0xb07620));
+    draw_ellipse(x, y, 12.0, 8.0, 0.0, Color::from_hex(0xc88828));
+    draw_ellipse(x, y, 10.0, 6.5, 0.0, Color::from_hex(0xd49830));
+    draw_ellipse(x, y, 8.0, 5.0, 0.0, Color::from_hex(0xe0a838));
+
+    // ── Drumsticks protruding from sides ────────────────────────────
+    // Left drumstick
+    draw_ellipse(x - 12.0, y + 2.0, 5.0, 3.0, 0.3, Color::from_hex(0xa06818));
+    draw_circle(x - 14.0, y + 4.0, 2.5, Color::from_hex(0x905010));
+    // Right drumstick
+    draw_ellipse(x + 12.0, y + 2.0, 5.0, 3.0, -0.3, Color::from_hex(0xa06818));
+    draw_circle(x + 14.0, y + 4.0, 2.5, Color::from_hex(0x905010));
+
+    // ── Wings tucked against body ───────────────────────────────────
+    draw_ellipse(x - 9.0, y - 4.0, 4.0, 3.0, 0.5, Color::from_hex(0xb88028));
+    draw_ellipse(x + 9.0, y - 4.0, 4.0, 3.0, -0.5, Color::from_hex(0xb88028));
+
+    // ── Twine wrapping ──────────────────────────────────────────────
+    draw_line(x - 9.0, y - 3.0, x + 9.0, y - 3.0, 1.0, Color::from_hex(0x886644));
+    draw_line(x - 9.0, y + 2.0, x + 9.0, y + 2.0, 1.0, Color::from_hex(0x886644));
+    draw_line(x - 8.0, y + 5.0, x + 8.0, y + 5.0, 1.0, Color::from_hex(0x886644));
+
+    // ── Golden crispy skin highlights ───────────────────────────────
+    draw_circle(x - 2.0, y - 1.0, 3.0, Color::from_hex(0xe8b848));
+    draw_circle(x + 3.0, y + 1.0, 2.5, Color::from_hex(0xe8b848));
+    draw_circle(x, y + 3.0, 2.0, Color::from_hex(0xf0c858));
+    draw_circle(x - 4.0, y + 1.0, 1.5, Color::from_hex(0xf0c858));
+    draw_circle(x + 2.0, y - 2.0, 1.5, Color::from_hex(0xf0c858));
+
+    // ── Steam lines ─────────────────────────────────────────────────
+    draw_line(x - 3.0, y - 16.0, x - 4.0, y - 20.0, 1.0, Color::from_rgba(200, 200, 200, 80));
+    draw_line(x + 2.0, y - 14.0, x + 1.0, y - 18.0, 1.0, Color::from_rgba(200, 200, 200, 60));
+}
+
+
+// ── Toddler boss sprite drawing ──────────────────────────────────────────────
+
+/// Draw the giant toddler boss at the given centre position.
+fn draw_toddler_boss_sprite(cx: f32, cy: f32, b: &ToddlerBoss) {
+    let flip = if b.facing_right { 1.0 } else { -1.0 };
+    let t = b.walk_time;
+    // Scale factor: the boss is 225px tall, so each unit = boss_height / 2
+    let s = 112.5;
+    let ox = |dx: f32| cx + dx * flip * s / 112.5;
+    let wobble = if b.dead { 0.0 } else { (t * 3.0).sin() * 3.0 };
+
+    // Skin color
+    let skin = Color::from_hex(0xf0c8a0);
+    let skin_shadow = Color::from_hex(0xd8a880);
+    let diaper = Color::from_hex(0xffffff);
+    let diaper_dark = Color::from_hex(0xdddddd);
+    let hair = Color::from_hex(0x8b4513);
+    let angry_red = Color::from_hex(0xcc3333);
+
+    // ── Legs (stubby, wide stance) ──────────────────────────────────
+    let leg_h = 30.0;
+    let leg_w = 20.0;
+    draw_rectangle(ox(-20.0) - leg_w / 2.0, cy + s * 0.3 + wobble, leg_w, leg_h, skin);
+    draw_circle(ox(-20.0), cy + s * 0.3 + leg_h + wobble, 12.0, skin_shadow);
+    draw_rectangle(ox(20.0) - leg_w / 2.0, cy + s * 0.3 + wobble, leg_w, leg_h, skin);
+    draw_circle(ox(20.0), cy + s * 0.3 + leg_h + wobble, 12.0, skin_shadow);
+
+    // ── Diaper ──────────────────────────────────────────────────────
+    draw_rectangle(ox(-25.0), cy - s * 0.1 + wobble, 50.0, 35.0, diaper);
+    draw_rectangle(ox(-22.0), cy - s * 0.05 + wobble, 44.0, 30.0, diaper_dark);
+    // Diaper lines
+    draw_line(ox(-10.0), cy - s * 0.1 + wobble, ox(-10.0), cy + s * 0.25 + wobble, 2.0, Color::from_hex(0xbbbbff));
+    draw_line(ox(10.0), cy - s * 0.1 + wobble, ox(10.0), cy + s * 0.25 + wobble, 2.0, Color::from_hex(0xbbbbff));
+
+    // ── Body ────────────────────────────────────────────────────────
+    let body_r = 32.0;
+    draw_circle(cx, cy - s * 0.2 + wobble, body_r, skin);
+    draw_circle(cx, cy - s * 0.15 + wobble, body_r - 3.0, skin_shadow);
+    // Angry chest pattern
+    draw_circle(ox(-8.0), cy - s * 0.25 + wobble, 6.0, angry_red);
+    draw_circle(ox(8.0), cy - s * 0.25 + wobble, 6.0, angry_red);
+
+    // ── Arms ────────────────────────────────────────────────────────
+    let arm_swing = (t * 4.0).sin() * 10.0;
+    draw_rectangle(ox(-body_r - 8.0), cy - s * 0.2 + arm_swing + wobble, 12.0, 25.0, skin);
+    draw_circle(ox(-body_r - 8.0), cy - s * 0.2 + arm_swing + wobble, 8.0, skin_shadow);
+    draw_rectangle(ox(body_r - 4.0), cy - s * 0.2 - arm_swing + wobble, 12.0, 25.0, skin);
+    draw_circle(ox(body_r - 4.0), cy - s * 0.2 - arm_swing + wobble, 8.0, skin_shadow);
+
+    // ── Head ────────────────────────────────────────────────────────
+    let head_cx = cx;
+    let head_cy = cy - s * 0.9 + wobble;
+    let head_r = 40.0;
+    draw_circle(head_cx, head_cy, head_r, skin);
+    draw_circle(head_cx, head_cy + 5.0, head_r - 2.0, skin_shadow);
+
+    // Chubby cheeks
+    draw_circle(head_cx - 25.0, head_cy + 8.0, 12.0, Color::from_hex(0xf0a0a0));
+    draw_circle(head_cx + 25.0, head_cy + 8.0, 12.0, Color::from_hex(0xf0a0a0));
+
+    // Hair (messy tufts)
+    for i in 0..5 {
+        let angle = -1.2 + i as f32 * 0.5 + (t * 2.0).sin() * 0.2;
+        let hx = head_cx + angle.cos() * head_r * 0.7;
+        let hy = head_cy - angle.sin() * head_r * 0.8;
+        draw_circle(hx, hy, 10.0, hair);
+    }
+    draw_circle(head_cx - 5.0, head_cy - head_r + 5.0, 12.0, hair);
+
+    // Angry eyebrows (dark thick lines)
+    draw_line(head_cx - 18.0, head_cy - 12.0, head_cx - 5.0, head_cy - 8.0, 4.0, Color::from_hex(0x5a3a1a));
+    draw_line(head_cx + 18.0, head_cy - 12.0, head_cx + 5.0, head_cy - 8.0, 4.0, Color::from_hex(0x5a3a1a));
+
+    // Eyes
+    draw_circle(head_cx - 12.0, head_cy, 8.0, Color::from_hex(0xffffff));
+    draw_circle(head_cx + 12.0, head_cy, 8.0, Color::from_hex(0xffffff));
+    draw_circle(head_cx - 11.0 + 2.0 * flip, head_cy, 5.0, Color::from_hex(0x2266aa));
+    draw_circle(head_cx + 13.0 + 2.0 * flip, head_cy, 5.0, Color::from_hex(0x2266aa));
+    draw_circle(head_cx - 11.0 + 2.0 * flip, head_cy - 1.0, 2.5, Color::from_hex(0x111111));
+    draw_circle(head_cx + 13.0 + 2.0 * flip, head_cy - 1.0, 2.5, Color::from_hex(0x111111));
+
+    // Angry mouth (open, teeth visible)
+    draw_circle(head_cx, head_cy + 15.0, 10.0, Color::from_hex(0x331111));
+    draw_rectangle(head_cx - 8.0, head_cy + 10.0, 16.0, 8.0, Color::from_hex(0x331111));
+    // Teeth
+    for i in 0..4 {
+        let tx = head_cx - 7.0 + i as f32 * 4.5;
+        draw_rectangle(tx, head_cy + 10.0, 3.0, 5.0, Color::from_hex(0xffffff));
+    }
+
+    // ── Tears (anger crying) ─────────────────────────────────────────
+    let tear_phase = (t * 5.0).sin();
+    if tear_phase > 0.0 {
+        draw_circle(head_cx - 16.0, head_cy + 12.0 + tear_phase * 5.0, 3.0, Color::from_hex(0x4488cc));
+        draw_circle(head_cx + 16.0, head_cy + 10.0 + tear_phase * 4.0, 2.5, Color::from_hex(0x4488cc));
+    }
 }
 
 
@@ -2058,7 +2530,8 @@ async fn main() {
                     game.reset();
                 }
 
-                if game.pee_mode && !game.done_pee && is_key_down(KeyCode::E) {
+                // Pee whenever holding E (after done_pee too)
+                if game.pee_mode && is_key_down(KeyCode::E) && !game.player.dead {
                     // Dropping yellow droplets from the dog's bum
                     let flip: f32 = if game.player.facing_right { 1.0 } else { -1.0 };
                     let dog_bum_x = game.player.pos.x + game.player.size.x / 2.0 - 15.0 * flip * DOG_SCALE;
@@ -2071,24 +2544,108 @@ async fn main() {
                         size: 5.0,
                         color_override: Some(Color::from_hex(0xcccc00)),
                     });
-                    // Check if the stream hits the tree (vertical rectangle from dog bum)
-                    let stream_left = dog_bum_x - 6.0;
-                    let stream_right = dog_bum_x + 6.0;
-                    let stream_top = dog_bum_y;
-                    let stream_bottom = dog_bum_y + 100.0;
-                    let tree_left = game.tree_x - 30.0;
-                    let tree_right = game.tree_x + 30.0;
-                    let tree_top = (screen_height() - 40.0) - PLAYER_HEIGHT * DOG_SCALE * 3.0;
-                    let tree_bottom = screen_height() - 40.0;
-                    if stream_left < tree_right && stream_right > tree_left
-                        && stream_top < tree_bottom && stream_bottom > tree_top
-                    {
-                        game.hearts = 4;
-                        game.done_pee = true;
+                    // Only check tree collision before done_pee
+                    if !game.done_pee {
+                        // Check if stream hits the tree trunk (bottom of tree)
+                        let stream_left = dog_bum_x - 6.0;
+                        let stream_right = dog_bum_x + 6.0;
+                        let stream_top = dog_bum_y;
+                        let stream_bottom = dog_bum_y + 100.0;
+                        // Find the platform under the tree (world coordinates)
+                        let mut tree_ground_world = screen_height() as f32 - 40.0;
+                        for plat in &game.platforms {
+                            if game.tree_x > plat.pos.x && game.tree_x < plat.pos.x + plat.size.x {
+                                tree_ground_world = plat.pos.y;
+                                break;
+                            }
+                        }
+                        let tree_trunk_h = PLAYER_HEIGHT * DOG_SCALE * 1.5;
+                        let tree_trunk_w = PLAYER_HEIGHT * DOG_SCALE * 0.36;
+                        let tree_left = game.tree_x - tree_trunk_w / 2.0;
+                        let tree_right = game.tree_x + tree_trunk_w / 2.0;
+                        let tree_top = tree_ground_world - tree_trunk_h;
+                        let tree_bottom = tree_ground_world;
+                        if stream_left < tree_right && stream_right > tree_left
+                            && stream_top < tree_bottom && stream_bottom > tree_top
+                        {
+                            game.hearts = 4;
+                            game.done_pee = true;
+                        }
                     }
                 }
-                if game.done_pee && is_key_pressed(KeyCode::Space) {
-                    game.state = GameState::Title;
+                // Pick up the rotisserie chicken
+                if game.done_pee && !game.player.super_mode {
+                    let chicken_x = game.tree_x - 80.0;
+                    let mut chicken_y = screen_height() - 40.0 - 30.0;
+                    for plat in &game.platforms {
+                        if game.tree_x > plat.pos.x && game.tree_x < plat.pos.x + plat.size.x {
+                            chicken_y = plat.pos.y - 30.0;
+                            break;
+                        }
+                    }
+                    let player_rect = game.player.rect();
+                    let chicken_rect = Rect::new(chicken_x - 12.0, chicken_y - 10.0, 24.0, 20.0);
+                    if player_rect.intersect(chicken_rect).is_some() {
+                        game.player.super_mode = true;
+                        game.boss_mode = true;
+                        game.boss = Some(ToddlerBoss::new(6800.0, 700.0));
+                        // Clear all level objects
+                        game.platforms.clear();
+                        game.babies.clear();
+                        game.spikes.clear();
+                        game.lava_pits.clear();
+                        game.foods.clear();
+                        game.poops.clear();
+                        game.goal_ball = None;
+                    }
+                }
+
+                // ── Boss fight update ───────────────────────────────────────
+                if game.boss_mode {
+                    if let Some(boss) = &mut game.boss {
+                        boss.update(dt, game.player.pos);
+
+                        // Pee damages the boss
+                        if game.pee_mode && is_key_down(KeyCode::E) && !boss.dead {
+                            let flip: f32 = if game.player.facing_right { 1.0 } else { -1.0 };
+                            let dog_bum_x = game.player.pos.x + game.player.size.x / 2.0 - 15.0 * flip * DOG_SCALE;
+                            let dog_bum_y = game.player.pos.y + game.player.size.y / 2.0 - 5.0;
+                            let stream_left = dog_bum_x - 6.0;
+                            let stream_right = dog_bum_x + 6.0;
+                            let stream_top = dog_bum_y;
+                            let stream_bottom = dog_bum_y + 100.0;
+                            let boss_rect = boss.rect();
+                            if stream_left < boss_rect.right() && stream_right > boss_rect.left()
+                                && stream_top < boss_rect.bottom() && stream_bottom > boss_rect.top()
+                            {
+                                boss.take_damage(0.2);
+                            }
+                        }
+
+                        // Boss death
+                        if boss.dead && boss.death_timer <= 0.0 {
+                            // Victory! Show congratulations
+                        }
+                    }
+                }
+
+                // Boss contact damage (outside borrow)
+                if game.boss_mode {
+                    if let Some(boss) = &game.boss {
+                        if !boss.dead && game.invincible_timer <= 0.0 {
+                            if game.player.rect().intersect(boss.rect()).is_some() {
+                                if game.hearts > 1 {
+                                    game.hearts -= 1;
+                                    game.play_ouch = true;
+                                    game.invincible_timer = 1.5;
+                                    game.death_message = "The toddler stepped on you!".to_string();
+                                } else if !game.player.dead {
+                                    game.death_message = "The toddler stepped on you!".to_string();
+                                    game.die();
+                                }
+                            }
+                        }
+                    }
                 }
                 // Level 4: auto-transition to pee mode after timer expires
                 if game.level_complete && game.complete_timer <= 0.0 && game.level == 4 {
@@ -2100,12 +2657,15 @@ async fn main() {
                     game.next_level();
                 }
 
-                if is_key_pressed(KeyCode::R) {
-                    game.reset();
-                }
+                // Lock R and Escape during level 4 completion fade
+                if !(game.level == 4 && game.level_complete) {
+                    if is_key_pressed(KeyCode::R) {
+                        game.reset();
+                    }
 
-                if is_key_pressed(KeyCode::Escape) {
-                    game.state = GameState::Paused;
+                    if is_key_pressed(KeyCode::Escape) {
+                        game.state = GameState::Paused;
+                    }
                 }
 
                 // ── Goal ball update ────────────────────────────────────────
@@ -2149,7 +2709,7 @@ async fn main() {
                     if game.player.rect().intersect(ball.rect()).is_some() && can_fetch {
                         ball.collected = true;
                         game.level_complete = true;
-                        game.complete_timer = if game.level == 4 { 3.0 } else { 0.5 };
+                        game.complete_timer = if game.level == 4 { 2.0 } else { 0.5 };
                         game.play_cheer = true;
                         for _ in 0..35 {
                             let angle = (mq_rand::rand() as f32 / u32::MAX as f32) * std::f32::consts::TAU;

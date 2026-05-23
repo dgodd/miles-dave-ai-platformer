@@ -177,4 +177,4 @@ C 5700 300 5600 5800
 C 6500 300 6500 6700
 
 ; ── Goal ball (purple) ──
-G 68 710 purple
+G 100 710 purple
