@@ -137,13 +137,12 @@ impl Spike {
 #[derive(Debug, Clone, PartialEq)]
 struct Poop {
     pos: Vec2,
-    vel_y: f32,
     eaten: bool,
 }
 
 impl Poop {
     fn new(x: f32, y: f32) -> Self {
-        Self { pos: vec2(x, y), vel_y: 300.0, eaten: false }
+        Self { pos: vec2(x, y), eaten: false }
     }
 
     fn rect(&self) -> Rect {
@@ -1674,38 +1673,20 @@ async fn main() {
                         }
                     }
 
-                    // ── Poop physics ────────────────────────────────────────
-                    for poop in &mut game.poops {
-                        if !poop.eaten && poop.vel_y != 0.0 {
-                            poop.vel_y += GRAVITY * dt;
-                            poop.pos.y += poop.vel_y * dt;
-                            // Check landing on a platform
-                            let mut landed = false;
-                            for plat in &game.platforms {
-                                let poop_bottom = poop.pos.y + 5.0;
-                                let overlaps_x = poop.pos.x > plat.pos.x && poop.pos.x < plat.pos.x + plat.size.x;
-                                if overlaps_x && poop_bottom >= plat.pos.y && poop_bottom <= plat.pos.y + 15.0 && poop.vel_y > 0.0 {
-                                    poop.pos.y = plat.pos.y - 5.0;
-                                    poop.vel_y = 0.0;
-                                    landed = true;
-                                    break;
-                                }
-                            }
-                            // Fallback: stop at floor level
-                            if !landed {
-                                let floor_y = screen_height() - 40.0;
-                                if poop.pos.y + 5.0 >= floor_y {
-                                    poop.pos.y = floor_y - 5.0;
-                                    poop.vel_y = 0.0;
-                                }
-                            }
-                        }
-                    }
-
                     if is_key_pressed(KeyCode::Q) {
                         let flip: f32 = if game.player.facing_right { 1.0 } else { -1.0 };
                         let px = game.player.pos.x + game.player.size.x / 2.0 - 8.0 * flip;
-                        let py = game.player.pos.y + game.player.size.y - 5.0;
+                        let mut py = game.player.pos.y + game.player.size.y - 5.0;
+                        // Find the nearest platform below the spawn and snap to it
+                        let mut best_y = f32::MAX;
+                        for plat in &game.platforms {
+                            if px > plat.pos.x && px < plat.pos.x + plat.size.x && plat.pos.y > py {
+                                best_y = best_y.min(plat.pos.y);
+                            }
+                        }
+                        if best_y < f32::MAX {
+                            py = best_y;
+                        }
                         game.poops.push(Poop::new(px, py));
                     }
                 } else if game.death_timer <= 0.0 && is_key_pressed(KeyCode::Space) {
