@@ -352,6 +352,7 @@ struct Game {
     death_timer: f32,
     death_message: String,
     played_death_sound: bool,
+    play_ouch: bool,
     dev_mode: bool,
     hearts: u32,
     invincible_timer: f32,
@@ -386,6 +387,7 @@ impl Game {
             death_timer: 0.0,
             death_message: String::new(),
             played_death_sound: false,
+            play_ouch: false,
             dev_mode: false,
             hearts: 3,
             invincible_timer: 0.0,
@@ -598,6 +600,7 @@ impl Game {
                     if !self.dev_mode && self.invincible_timer <= 0.0 {
                         if self.hearts > 1 {
                             self.hearts -= 1;
+                            self.play_ouch = true;
                             self.invincible_timer = 2.0;
                             self.death_message = "The baby pulled your tail".to_string();
                         } else {
@@ -1534,6 +1537,7 @@ fn window_conf() -> Conf {
 async fn main() {
     let poop_sound = audio::load_sound("assets/poop.wav").await.ok();
     let death_sound = audio::load_sound("assets/death.wav").await.ok();
+    let ouch_sound = audio::load_sound("assets/ouch.wav").await.ok();
 
     let mut game = Game::new();
 
@@ -1547,6 +1551,12 @@ async fn main() {
         if game.player.dead && !game.played_death_sound {
             game.played_death_sound = true;
             if let Some(s) = &death_sound {
+                audio::play_sound_once(s);
+            }
+        }
+        if game.play_ouch {
+            game.play_ouch = false;
+            if let Some(s) = &ouch_sound {
                 audio::play_sound_once(s);
             }
         }
