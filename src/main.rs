@@ -701,17 +701,30 @@ impl Game {
         }
 
         // ── HUD ─────────────────────────────────────────────────────────
-        let ball_info = match &self.goal_ball {
-            Some(b) if !b.collected => format!("  Ball: ({:.0}, {:.0})", b.pos.x, b.pos.y),
-            _ => String::new(),
-        };
         let food_info = if self.food_total > 0 {
-            format!("  Food: {}/{}", self.food_collected, self.food_total)
+            format!("Food: {}/{}  ", self.food_collected, self.food_total)
         } else {
             String::new()
         };
-        let hud_text = format!("x: {:.0}  y: {:.0}  grounded: {}{}{}", self.player.pos.x, self.player.pos.y, self.player.grounded, ball_info, food_info);
-        draw_text(&hud_text, 12.0, 28.0, 20.0, Color::from_hex(0xaaaaaa));
+        let level_text = format!("Level {}", self.level);
+        draw_text(&level_text, 12.0, 28.0, 20.0, Color::from_hex(0xaaaaaa));
+        if self.food_total > 0 {
+            draw_text(&food_info, 12.0, 52.0, 20.0, Color::from_hex(0xf0c860));
+        }
+
+        // ── Level 3 sign ────────────────────────────────────────────────
+        if self.level == 3 && self.state == GameState::Playing {
+            let sign_x = 30.0 - cam.x;
+            let sign_y = 680.0 - cam.y;
+            let sign_w = 520.0;
+            let sign_h = 60.0;
+            draw_rectangle(sign_x, sign_y, sign_w, sign_h, Color::from_rgba(20, 15, 40, 220));
+            draw_rectangle(sign_x + 2.0, sign_y + 2.0, sign_w - 4.0, sign_h - 4.0, Color::from_rgba(30, 25, 55, 220));
+            let msg = "Pick up all the food to collect the Goal Ball!";
+            let msg_size = measure_text(msg, None, 18, 1.0);
+            draw_text(msg, sign_x + (sign_w - msg_size.width) / 2.0, sign_y + sign_h / 2.0 + 6.0,
+                      18.0, Color::from_hex(0xf0c860));
+        }
         draw_text("Arrow keys / WASD to move, Space to jump  |  Q to poop  |  R to reset", 12.0, screen_height() - 12.0, 16.0, Color::from_hex(0x666666));
 
         // ── Death overlay ───────────────────────────────────────────────
