@@ -269,9 +269,11 @@ impl Lava {
         let tooth_count = (self.width / SPIKE_TOOTH_WIDTH).ceil() as usize;
         let spacing = self.width / tooth_count as f32;
 
-        // Glow behind lava
-        draw_rectangle(sx - 4.0, sy - 4.0, self.width + 8.0, self.height + 8.0,
-                       Color::from_rgba(255, 100, 0, 40));
+        // Pulsing brightness
+        let pulse = ((get_time() as f32) * 3.0).sin() * 0.3 + 0.7;
+        let bright = Color::new(1.0, 0.4 * pulse, 0.0, 1.0);
+        let hot = Color::new(1.0, 0.67 * pulse, 0.0, 1.0);
+        let dark = Color::new(0.8, 0.27 * pulse, 0.0, 1.0);
 
         for i in 0..tooth_count {
             let cx = sx + i as f32 * spacing + spacing / 2.0;
@@ -285,18 +287,18 @@ impl Lava {
                 vec2(left, bottom),
                 vec2(right, bottom),
                 vec2(cx, tip_y),
-                Color::from_hex(0xcc4400),
+                dark,
             );
             // Bright glow
             draw_triangle(
                 vec2(left + 3.0, bottom - 2.0),
                 vec2(right - 3.0, bottom - 2.0),
                 vec2(cx, tip_y + 3.0),
-                Color::from_hex(0xff6600),
+                bright,
             );
             // Hot centre
             draw_circle(cx, sy + self.height * 0.4, spacing * 0.2,
-                        Color::from_hex(0xffaa00));
+                        hot);
         }
     }
 }
