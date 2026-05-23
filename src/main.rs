@@ -351,6 +351,8 @@ struct Game {
     death_timer: f32,
     death_message: String,
     dev_mode: bool,
+    hearts: u32,
+    invincible_timer: f32,
     state: GameState,
     goal_ball: Option<GoalBall>,
     lava_pits: Vec<Lava>,
@@ -382,6 +384,8 @@ impl Game {
             death_timer: 0.0,
             death_message: String::new(),
             dev_mode: false,
+            hearts: 3,
+            invincible_timer: 0.0,
             state: GameState::Title,
             goal_ball,
             foods: vec![],
@@ -587,9 +591,15 @@ impl Game {
         if !self.player.dead {
             for baby in &self.babies {
                 if self.player.rect().intersect(baby.rect()).is_some() {
-                    if !self.dev_mode {
-                        self.death_message = "The baby pulled your tail".to_string();
-                        self.die();
+                    if !self.dev_mode && self.invincible_timer <= 0.0 {
+                        if self.hearts > 1 {
+                            self.hearts -= 1;
+                            self.invincible_timer = 2.0;
+                            self.death_message = "The baby pulled your tail".to_string();
+                        } else {
+                            self.death_message = "The baby pulled your tail".to_string();
+                            self.die();
+                        }
                     }
                     break;
                 }
@@ -710,9 +720,12 @@ impl Game {
 
         // ── Player ──────────────────────────────────────────────────────
         if !self.player.dead {
-            let psx = self.player.pos.x + self.player.size.x / 2.0 - cam.x;
-            let psy = self.player.pos.y + self.player.size.y / 2.0 - cam.y;
-            draw_dog_sprite(psx, psy, &self.player, DOG_SCALE);
+            let flash = self.invincible_timer <= 0.0 || (self.invincible_timer * 10.0).floor() as i32 % 2 == 0;
+            if flash {
+                let psx = self.player.pos.x + self.player.size.x / 2.0 - cam.x;
+                let psy = self.player.pos.y + self.player.size.y / 2.0 - cam.y;
+                draw_dog_sprite(psx, psy, &self.player, DOG_SCALE);
+            }
         }
 
         // ── Particles ──────────────────────────────────────────────────
@@ -736,6 +749,9 @@ impl Game {
         if self.food_total > 0 {
             draw_text(&food_info, 12.0, 52.0, 20.0, Color::from_hex(0xf0c860));
         }
+        // Hearts
+        let hearts_str = "❤ ".repeat(self.hearts as usize);
+        draw_text(&hearts_str, 100.0, 28.0, 20.0, Color::from_hex(0xe94560));
 
         draw_text("Arrow keys / WASD to move, Space to jump  |  Q to poop  |  R to reset", 12.0, screen_height() - 12.0, 16.0, Color::from_hex(0x666666));
 
@@ -1478,6 +1494,9 @@ async fn main() {
         }
         if game.complete_timer > 0.0 {
             game.complete_timer -= dt;
+        }
+        if game.invincible_timer > 0.0 {
+            game.invincible_timer -= dt;
         }
         game.particles.retain_mut(|p| {
             p.lifetime -= dt;
