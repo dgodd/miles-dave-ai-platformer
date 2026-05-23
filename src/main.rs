@@ -17,6 +17,7 @@ const SPIKE_HEIGHT: f32 = 24.0;
 const SPIKE_TOOTH_WIDTH: f32 = 20.0;
 
 const BABY_SPEED: f32 = 65.0;
+const BABY_SCALE: f32 = 1.5;
 
 // ── Dog colours ──────────────────────────────────────────────────────────────
 
@@ -716,6 +717,8 @@ impl Game {
         {
             let sx = ball.pos.x - cam.x;
             let sy = ball.pos.y - cam.y;
+            // Tree behind the ball
+            draw_tree(sx - 20.0, sy + 20.0, 30.0);
             let all_food = self.food_total == 0 || self.food_collected >= self.food_total;
             let display_color = if all_food {
                 ball.color
@@ -785,7 +788,7 @@ impl Game {
             draw_text(&food_info, 16.0, 68.0, 26.0, Color::from_hex(0xf0c860));
         }
         // Hearts (filled and empty)
-        for i in 0..4 {
+        for i in 0..3 {
             let hx = 130.0 + i as f32 * 39.0;
             let hy = 30.0;
             if i < self.hearts {
@@ -1026,6 +1029,18 @@ fn draw_tennis_ball(cx: f32, cy: f32, radius: f32, main_color: Color, highlight_
 /// Draw a golden tennis ball (original title screen variant).
 fn draw_golden_tennis_ball(cx: f32, cy: f32, radius: f32) {
     draw_tennis_ball(cx, cy, radius, Color::from_hex(0xd4c73c), Color::from_hex(0xe8da4a));
+}
+
+/// Draw a simple tree (trunk + green canopy).
+fn draw_tree(x: f32, y: f32, h: f32) {
+    let trunk_w = h * 0.15;
+    let trunk_h = h * 0.4;
+    let canopy_r = h * 0.45;
+    // Trunk
+    draw_rectangle(x - trunk_w / 2.0, y - trunk_h, trunk_w, trunk_h, Color::from_hex(0x8b5e3c));
+    // Canopy
+    draw_circle(x, y - trunk_h - canopy_r * 0.3, canopy_r, Color::from_hex(0x3a7d3a));
+    draw_circle(x, y - trunk_h - canopy_r * 0.5, canopy_r * 0.8, Color::from_hex(0x4a9d4a));
 }
 
 /// Draw a heart shape using overlapping circles.
@@ -1280,39 +1295,39 @@ fn draw_back_leg(x: f32, y: f32, grounded: bool, s: f32) {
 fn draw_baby_sprite(cx: f32, cy: f32, b: &Baby) {
     let flip = if b.facing_right { 1.0 } else { -1.0 };
     let t = b.crawl_time;
+    let s = BABY_SCALE;
 
-    // Crawl-cycle arm/leg rock
     let crawl = (t * 7.0).sin();
 
-    let ox = |dx: f32| cx + dx * flip;
+    let ox = |dx: f32| cx + dx * flip * s;
 
     // ── Body (torso — small, slightly tilted) ──────────────────────────
     let body_cy = cy + 1.0;
-    draw_rectangle(cx - 5.0, body_cy - 4.0, 10.0, 8.0, BABY_SKIN);
+    draw_rectangle(cx - 5.0 * s, body_cy - 4.0 * s, 10.0 * s, 8.0 * s, BABY_SKIN);
 
     // ── Diaper (round bottom) ──────────────────────────────────────────
-    draw_circle(ox(0.0), body_cy + 4.0, 6.0, BABY_DIAPER);
-    draw_circle(ox(0.0), body_cy + 4.0, 5.0, BABY_DIAPER_DARK);
+    draw_circle(ox(0.0), body_cy + 4.0 * s, 6.0 * s, BABY_DIAPER);
+    draw_circle(ox(0.0), body_cy + 4.0 * s, 5.0 * s, BABY_DIAPER_DARK);
 
     // ── Back arm (left side, behind body) ──────────────────────────────
-    let back_arm_x = ox(-5.0) + crawl * 2.0;
-    draw_rectangle(back_arm_x - 1.5, body_cy + 2.0, 3.0, 6.0, BABY_SKIN_SHADOW);
-    draw_circle(back_arm_x, body_cy + 8.0, 2.5, BABY_SKIN_SHADOW);
+    let back_arm_x = ox(-5.0) + crawl * 2.0 * s;
+    draw_rectangle(back_arm_x - 1.5 * s, body_cy + 2.0 * s, 3.0 * s, 6.0 * s, BABY_SKIN_SHADOW);
+    draw_circle(back_arm_x, body_cy + 8.0 * s, 2.5 * s, BABY_SKIN_SHADOW);
 
     // ── Back leg ────────────────────────────────────────────────────────
-    let back_leg_x = ox(-3.0) - crawl * 1.5;
-    draw_rectangle(back_leg_x - 1.5, body_cy + 4.0, 3.0, 5.0, BABY_SKIN_SHADOW);
-    draw_circle(back_leg_x, body_cy + 9.0, 2.0, BABY_SKIN_SHADOW);
+    let back_leg_x = ox(-3.0) - crawl * 1.5 * s;
+    draw_rectangle(back_leg_x - 1.5 * s, body_cy + 4.0 * s, 3.0 * s, 5.0 * s, BABY_SKIN_SHADOW);
+    draw_circle(back_leg_x, body_cy + 9.0 * s, 2.0 * s, BABY_SKIN_SHADOW);
 
     // ── Front arm (visible side) ────────────────────────────────────────
-    let front_arm_x = ox(5.0) - crawl * 2.0;
-    draw_rectangle(front_arm_x - 1.5, body_cy + 2.0, 3.0, 6.0, BABY_SKIN);
-    draw_circle(front_arm_x, body_cy + 8.0, 2.5, BABY_SKIN);
+    let front_arm_x = ox(5.0) - crawl * 2.0 * s;
+    draw_rectangle(front_arm_x - 1.5 * s, body_cy + 2.0 * s, 3.0 * s, 6.0 * s, BABY_SKIN);
+    draw_circle(front_arm_x, body_cy + 8.0 * s, 2.5 * s, BABY_SKIN);
 
     // ── Front leg ───────────────────────────────────────────────────────
-    let front_leg_x = ox(3.0) + crawl * 1.5;
-    draw_rectangle(front_leg_x - 1.5, body_cy + 4.0, 3.0, 5.0, BABY_SKIN);
-    draw_circle(front_leg_x, body_cy + 9.0, 2.0, BABY_SKIN);
+    let front_leg_x = ox(3.0) + crawl * 1.5 * s;
+    draw_rectangle(front_leg_x - 1.5 * s, body_cy + 4.0 * s, 3.0 * s, 5.0 * s, BABY_SKIN);
+    draw_circle(front_leg_x, body_cy + 9.0 * s, 2.0 * s, BABY_SKIN);
 
     // ── Head (big round head, slightly forward) ─────────────────────────
     let head_x = ox(6.0);
@@ -1347,13 +1362,14 @@ fn draw_baby_sprite(cx: f32, cy: f32, b: &Baby) {
 fn draw_cat_sprite(cx: f32, cy: f32, b: &Baby) {
     let flip = if b.facing_right { 1.0 } else { -1.0 };
     let t = b.crawl_time;
+    let s = BABY_SCALE;
     let crawl = (t * 7.0).sin();
-    let ox = |dx: f32| cx + dx * flip;
+    let ox = |dx: f32| cx + dx * flip * s;
 
     // ── Body (orange tabby) ──────────────────────────────────────────
     let body_cy = cy + 1.0;
-    draw_rectangle(cx - 5.0, body_cy - 4.0, 10.0, 8.0, Color::from_hex(0xe09040));
-    draw_rectangle(cx - 5.0, body_cy - 4.0, 10.0, 3.0, Color::from_hex(0xf0a060));
+    draw_rectangle(cx - 5.0 * s, body_cy - 4.0 * s, 10.0 * s, 8.0 * s, Color::from_hex(0xe09040));
+    draw_rectangle(cx - 5.0 * s, body_cy - 4.0 * s, 10.0 * s, 3.0 * s, Color::from_hex(0xf0a060));
 
     // ── Tail (curled up) ─────────────────────────────────────────────
     let tail_base_x = ox(-6.0);
@@ -1362,14 +1378,14 @@ fn draw_cat_sprite(cx: f32, cy: f32, b: &Baby) {
     draw_circle(tail_tip_x, body_cy - 8.0, 2.5, Color::from_hex(0xf0a060));
 
     // ── Back legs ────────────────────────────────────────────────────
-    let bl_x = ox(-3.0) - crawl * 2.0;
-    draw_rectangle(bl_x - 1.5, body_cy + 3.0, 3.0, 5.0, Color::from_hex(0xe09040));
-    draw_circle(bl_x, body_cy + 8.0, 2.0, Color::from_hex(0xd08030));
+    let bl_x = ox(-3.0) - crawl * 2.0 * s;
+    draw_rectangle(bl_x - 1.5 * s, body_cy + 3.0 * s, 3.0 * s, 5.0 * s, Color::from_hex(0xe09040));
+    draw_circle(bl_x, body_cy + 8.0 * s, 2.0 * s, Color::from_hex(0xd08030));
 
     // ── Front legs ───────────────────────────────────────────────────
-    let fl_x = ox(3.0) + crawl * 2.0;
-    draw_rectangle(fl_x - 1.5, body_cy + 3.0, 3.0, 5.0, Color::from_hex(0xe09040));
-    draw_circle(fl_x, body_cy + 8.0, 2.0, Color::from_hex(0xd08030));
+    let fl_x = ox(3.0) + crawl * 2.0 * s;
+    draw_rectangle(fl_x - 1.5 * s, body_cy + 3.0 * s, 3.0 * s, 5.0 * s, Color::from_hex(0xe09040));
+    draw_circle(fl_x, body_cy + 8.0 * s, 2.0 * s, Color::from_hex(0xd08030));
 
     // ── Head ─────────────────────────────────────────────────────────
     let head_x = ox(6.0);
