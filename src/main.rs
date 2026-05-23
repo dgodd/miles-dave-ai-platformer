@@ -1651,8 +1651,9 @@ async fn main() {
                             let baby_cx = baby.pos.x + baby.size.x / 2.0;
                             for poop in &mut game.poops {
                                 if poop.eaten { continue; }
+                                let same_plat = (baby.floor_y - poop.pos.y).abs() < 30.0;
                                 let dist = (baby_cx - poop.pos.x).abs();
-                                if dist < 200.0
+                                if same_plat && dist < 200.0
                                     && !mq_rand::rand().is_multiple_of(4)
                                 {
                                     // 75%: flee away from the poop
