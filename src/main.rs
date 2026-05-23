@@ -723,10 +723,19 @@ impl Game {
         {
             let sx = ball.pos.x - cam.x;
             let sy = ball.pos.y - cam.y;
-            // Tree at fixed position near the ball (3x dog height)
+            // Tree at fixed position near the ball on the same platform
             let tree_h = PLAYER_HEIGHT * DOG_SCALE * 3.0;
             let tree_cx = self.tree_x - cam.x;
-            let tree_ground = (screen_height() - 40.0) - cam.y;
+            // Find the platform the ball is on
+            let mut tree_ground = (screen_height() - 40.0) - cam.y;
+            if let Some(b) = &self.goal_ball {
+                for plat in &self.platforms {
+                    if b.pos.x > plat.pos.x && b.pos.x < plat.pos.x + plat.size.x {
+                        tree_ground = plat.pos.y - cam.y;
+                        break;
+                    }
+                }
+            }
             draw_tree(tree_cx - 30.0, tree_ground, tree_h);
             let all_food = self.food_total == 0 || self.food_collected >= self.food_total;
             let display_color = if all_food {
@@ -1042,14 +1051,14 @@ fn draw_golden_tennis_ball(cx: f32, cy: f32, radius: f32) {
 
 /// Draw a simple tree (trunk + green canopy).
 fn draw_tree(x: f32, y: f32, h: f32) {
-    let trunk_w = h * 0.15;
-    let trunk_h = h * 0.4;
-    let canopy_r = h * 0.45;
+    let trunk_w = h * 0.12;
+    let trunk_h = h * 0.5;
+    let canopy_r = h * 0.5;
     // Trunk
     draw_rectangle(x - trunk_w / 2.0, y - trunk_h, trunk_w, trunk_h, Color::from_hex(0x8b5e3c));
     // Canopy
-    draw_circle(x, y - trunk_h - canopy_r * 0.3, canopy_r, Color::from_hex(0x3a7d3a));
-    draw_circle(x, y - trunk_h - canopy_r * 0.5, canopy_r * 0.8, Color::from_hex(0x4a9d4a));
+    draw_circle(x, y - trunk_h - canopy_r * 0.2, canopy_r, Color::from_hex(0x3a7d3a));
+    draw_circle(x, y - trunk_h - canopy_r * 0.4, canopy_r * 0.8, Color::from_hex(0x4a9d4a));
 }
 
 /// Draw a heart shape using overlapping circles.
