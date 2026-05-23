@@ -644,6 +644,20 @@ impl Game {
             lava.draw(cam);
         }
 
+        // ── Level 3 instruction sign (behind everything) ───────────────
+        if self.level == 3 && self.state == GameState::Playing {
+            let sign_x = 30.0 - cam.x;
+            let sign_y = 700.0 - cam.y;
+            let sign_w = 520.0;
+            let sign_h = 50.0;
+            draw_rectangle(sign_x, sign_y, sign_w, sign_h, Color::from_rgba(20, 15, 40, 220));
+            draw_rectangle(sign_x + 2.0, sign_y + 2.0, sign_w - 4.0, sign_h - 4.0, Color::from_rgba(30, 25, 55, 220));
+            let msg = "Pick up all the food to collect the Goal Ball!";
+            let msg_size = measure_text(msg, None, 18, 1.0);
+            draw_text(msg, sign_x + (sign_w - msg_size.width) / 2.0, sign_y + sign_h / 2.0 + 6.0,
+                      18.0, Color::from_hex(0xf0c860));
+        }
+
         // ── Babies ──────────────────────────────────────────────────────
         for baby in &self.babies {
             let bx = baby.pos.x + baby.size.x / 2.0 - cam.x;
@@ -657,12 +671,16 @@ impl Game {
         {
             let sx = ball.pos.x - cam.x;
             let sy = ball.pos.y - cam.y;
-            draw_tennis_ball(sx, sy, 12.0, ball.color, Color::new(
+            let all_food = self.food_total == 0 || self.food_collected >= self.food_total;
+            let alpha = if all_food { 1.0 } else { 0.4 };
+            let ball_color = Color::new(ball.color.r, ball.color.g, ball.color.b, alpha);
+            let highlight = Color::new(
                 (ball.color.r * 1.1).min(1.0),
                 (ball.color.g * 1.1).min(1.0),
                 (ball.color.b * 1.1).min(1.0),
-                1.0,
-            ));
+                alpha,
+            );
+            draw_tennis_ball(sx, sy, 12.0, ball_color, highlight);
         }
 
         // ── Food ───────────────────────────────────────────────────────
@@ -712,19 +730,6 @@ impl Game {
             draw_text(&food_info, 12.0, 52.0, 20.0, Color::from_hex(0xf0c860));
         }
 
-        // ── Level 3 sign ────────────────────────────────────────────────
-        if self.level == 3 && self.state == GameState::Playing {
-            let sign_x = 30.0 - cam.x;
-            let sign_y = 680.0 - cam.y;
-            let sign_w = 520.0;
-            let sign_h = 60.0;
-            draw_rectangle(sign_x, sign_y, sign_w, sign_h, Color::from_rgba(20, 15, 40, 220));
-            draw_rectangle(sign_x + 2.0, sign_y + 2.0, sign_w - 4.0, sign_h - 4.0, Color::from_rgba(30, 25, 55, 220));
-            let msg = "Pick up all the food to collect the Goal Ball!";
-            let msg_size = measure_text(msg, None, 18, 1.0);
-            draw_text(msg, sign_x + (sign_w - msg_size.width) / 2.0, sign_y + sign_h / 2.0 + 6.0,
-                      18.0, Color::from_hex(0xf0c860));
-        }
         draw_text("Arrow keys / WASD to move, Space to jump  |  Q to poop  |  R to reset", 12.0, screen_height() - 12.0, 16.0, Color::from_hex(0x666666));
 
         // ── Death overlay ───────────────────────────────────────────────
