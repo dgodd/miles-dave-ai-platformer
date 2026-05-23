@@ -686,6 +686,8 @@ impl Game {
             if !food.collected {
                 let sx = food.pos.x - cam.x;
                 let sy = food.pos.y - cam.y;
+                // Bright background marker so food is always visible
+                draw_circle(sx, sy, 9.0, Color::from_rgba(255, 255, 200, 60));
                 draw_food_sprite(sx, sy, &food.kind);
             }
         }
