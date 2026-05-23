@@ -750,8 +750,11 @@ impl Game {
             draw_text(&food_info, 12.0, 52.0, 20.0, Color::from_hex(0xf0c860));
         }
         // Hearts
-        let hearts_str = "❤ ".repeat(self.hearts as usize);
-        draw_text(&hearts_str, 100.0, 28.0, 20.0, Color::from_hex(0xe94560));
+        for i in 0..self.hearts {
+            let hx = 100.0 + i as f32 * 30.0;
+            let hy = 24.0;
+            draw_heart(hx, hy, 10.0, Color::from_hex(0xe94560));
+        }
 
         draw_text("Arrow keys / WASD to move, Space to jump  |  Q to poop  |  R to reset", 12.0, screen_height() - 12.0, 16.0, Color::from_hex(0x666666));
 
@@ -982,8 +985,22 @@ fn draw_tennis_ball(cx: f32, cy: f32, radius: f32, main_color: Color, highlight_
 }
 
 /// Draw a golden tennis ball (original title screen variant).
-pub fn draw_golden_tennis_ball(cx: f32, cy: f32, radius: f32) {
+fn draw_golden_tennis_ball(cx: f32, cy: f32, radius: f32) {
     draw_tennis_ball(cx, cy, radius, Color::from_hex(0xd4c73c), Color::from_hex(0xe8da4a));
+}
+
+/// Draw a heart shape using two circles and a triangle.
+fn draw_heart(cx: f32, cy: f32, size: f32, color: Color) {
+    let r = size * 0.5;
+    let offset = r * 0.3;
+    draw_circle(cx - offset, cy, r, color);
+    draw_circle(cx + offset, cy, r, color);
+    draw_triangle(
+        vec2(cx - offset * 1.8, cy + offset * 0.5),
+        vec2(cx + offset * 1.8, cy + offset * 0.5),
+        vec2(cx, cy + size * 0.9),
+        color,
+    );
 }
 
 /// Draw a piece of food at the given position.
