@@ -347,6 +347,7 @@ struct Game {
     poops: Vec<Poop>,
     particles: Vec<Particle>,
     death_timer: f32,
+    death_message: String,
     state: GameState,
     goal_ball: Option<GoalBall>,
     lava_pits: Vec<Lava>,
@@ -376,6 +377,7 @@ impl Game {
             poops: vec![],
             particles: vec![],
             death_timer: 0.0,
+            death_message: String::new(),
             state: GameState::Title,
             goal_ball,
             foods: vec![],
@@ -556,6 +558,7 @@ impl Game {
         // ── Spike collisions ────────────────────────────────────────────
         for spike in &self.spikes {
             if self.player.rect().intersect(spike.rect()).is_some() {
+                self.death_message = "Ouch! Spikes are not food".to_string();
                 self.die();
                 break;
             }
@@ -564,6 +567,7 @@ impl Game {
         // ── Lava collisions ─────────────────────────────────────────────
         for lava in &self.lava_pits {
             if self.player.rect().intersect(lava.rect()).is_some() {
+                self.death_message = "Fire is great till it burns you".to_string();
                 self.die();
                 break;
             }
@@ -581,6 +585,7 @@ impl Game {
         if !self.player.dead {
             for baby in &self.babies {
                 if self.player.rect().intersect(baby.rect()).is_some() {
+                    self.death_message = "The baby pulled your tail".to_string();
                     self.die();
                     break;
                 }
@@ -737,9 +742,8 @@ impl Game {
             draw_rectangle(0.0, 0.0, screen_width(), screen_height(),
                            Color::from_rgba(0, 0, 0, 180));
 
-            let title = "The baby pulled your tail";
-            let title_size = measure_text(title, None, 48, 1.0);
-            draw_text(title, screen_width() / 2.0 - title_size.width / 2.0, screen_height() / 2.0 - 20.0,
+            let title_size = measure_text(&self.death_message, None, 48, 1.0);
+            draw_text(&self.death_message, screen_width() / 2.0 - title_size.width / 2.0, screen_height() / 2.0 - 20.0,
                       48.0, Color::from_hex(0xcc0000));
 
             let subtitle = "Press Space to respawn";
