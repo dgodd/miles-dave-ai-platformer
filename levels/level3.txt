@@ -9,6 +9,7 @@
 ;   Types: bacon, chicken, burger, pizza
 
 P 80 724
+F 80 740 bacon
 
 ; ── Ground level with maze walls ──
 # 0    760 300 40
