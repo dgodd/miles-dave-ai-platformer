@@ -1,4 +1,4 @@
-; Level 3 — The Food Maze
+; Level 3 — The Food Maze (1.5x extended)
 ; Format: symbol x y [width] [extra]
 ;   P = player start
 ;   # = platform (x y width height)
@@ -12,305 +12,216 @@ P 80 724
 
 ; ── Ground level with maze walls ──
 # 0    760 300 40
-# 3000 760 300 40
 # 400  760 200 40
-# 3400 760 200 40
 # 700  760 300 40
-# 3700 760 300 40
 # 1100 760 200 40
-# 4100 760 200 40
 # 1400 760 200 40
-# 4400 760 200 40
 # 1700 760 300 40
-# 4700 760 300 40
 # 2100 760 200 40
-# 5100 760 200 40
 # 2400 760 400 40
-# 5400 760 400 40
+# 2900 760 300 40        ; extended section
+# 3300 760 200 40
+# 3600 760 300 40
+# 4000 760 200 40
 
 ; ── Upper platforms (maze layers) ──
 # 200  600 300 20
-# 3200 600 300 20
 # 600  540 200 20
-# 3600 540 200 20
 # 300  480 200 20
-# 3300 480 200 20
 # 700  420 200 20
-# 3700 420 200 20
 # 1000 520 300 20
-# 4000 520 300 20
 # 1300 440 200 20
-# 4300 440 200 20
 # 1600 480 300 20
-# 4600 480 300 20
 # 1900 400 200 20
-# 4900 400 200 20
 # 2200 500 200 20
-# 5200 500 200 20
 # 2500 420 300 20
-# 5500 420 300 20
+# 3100 600 300 20        ; extended
+# 3500 540 200 20
+# 3200 480 200 20
+# 3600 420 200 20
+# 3900 520 300 20
 
 ; ── Mid platforms ──
 # 500  320 200 20
-# 3500 320 200 20
 # 900  280 200 20
-# 3900 280 200 20
 # 1200 320 300 20
-# 4200 320 300 20
 # 1500 280 200 20
-# 4500 280 200 20
 # 1800 320 200 20
-# 4800 320 200 20
 # 2100 280 200 20
-# 5100 280 200 20
 # 2500 300 200 20
-# 5500 300 200 20
+# 3400 320 200 20        ; extended
+# 3800 280 200 20
+# 4100 320 200 20
 
 ; ── High platforms ──
 # 400  200 200 20
-# 3400 200 200 20
 # 800  180 200 20
-# 3800 180 200 20
 # 1200 200 200 20
-# 4200 200 200 20
 # 1600 180 200 20
-# 4600 180 200 20
 # 2100 200 300 20
-# 5100 200 300 20
+# 3300 200 200 20        ; extended
+# 3700 180 200 20
 
 ; ── Spike pits ──
 S 300 744 100 24
-S 3300 744 100 24
 S 600 744 100 24
-S 3600 744 100 24
 S 1000 744 100 24
-S 4000 744 100 24
 S 1300 744 100 24
-S 4300 744 100 24
 S 1600 744 100 24
-S 4600 744 100 24
 S 2000 744 100 24
-S 5000 744 100 24
 S 2300 744 100 24
-S 5300 744 100 24
 S 2800 744 200 24
-S 5800 744 200 24
+S 3200 744 100 24       ; extended section spikes
+S 3500 744 100 24
+S 3800 744 100 24
+S 4200 744 200 24
 
 ; ── Babies ──
 B 100 760 0 300
-B 3100 760 0 300
 B 500 760 400 600
-B 3500 760 400 600
 B 850 760 700 1000
-B 3850 760 700 1000
 B 1200 760 1100 1300
-B 4200 760 1100 1300
 B 1500 760 1400 1600
-B 4500 760 1400 1600
 B 1850 760 1700 2000
-B 4850 760 1700 2000
 B 2200 760 2100 2300
-B 5200 760 2100 2300
 B 2600 760 2400 2800
-B 5600 760 2400 2800
+B 3000 760 2900 3200     ; extended babies
+B 3450 760 3300 3500
+B 3750 760 3600 3900
+B 4100 760 4000 4200
 B 350 600 200 500
-B 3350 600 200 500
 B 650 540 600 800
-B 3650 540 600 800
 B 400 480 300 500
-B 3400 480 300 500
 B 800 420 700 900
-B 3800 420 700 900
 B 1150 520 1000 1300
-B 4150 520 1000 1300
 B 1400 440 1300 1500
-B 4400 440 1300 1500
 B 1750 480 1600 1900
-B 4750 480 1600 1900
 B 2000 400 1900 2100
-B 5000 400 1900 2100
 B 2350 500 2200 2400
-B 5350 500 2200 2400
 B 2650 420 2500 2800
-B 5650 420 2500 2800
 B 600 320 500 700
-B 3600 320 500 700
 B 1000 280 900 1100
-B 4000 280 900 1100
 B 1400 320 1200 1500
-B 4400 320 1200 1500
 B 1700 280 1500 1700
-B 4700 280 1500 1700
+B 1900 320 1800 2000
+B 2200 280 2100 2300
+B 3200 600 3100 3400     ; extended upper babies
+B 3600 540 3500 3700
+B 3250 480 3200 3300
+B 3500 320 3400 3600     ; extended mid babies
+B 3900 280 3800 4000
+B 3350 200 3300 3400     ; extended high babies
 
 ; ── Goal ball (red) ──
-G 2600 670 red
-G 5600 670 red
+G 3900 670 red
 
 ; ── Food scattered everywhere ──
 ; Ground level food
 F 50 740 bacon
-F 3050 740 bacon
 F 150 740 chicken
-F 3150 740 chicken
 F 200 740 burger
-F 3200 740 burger
 F 450 740 pizza
-F 3450 740 pizza
 F 500 740 bacon
-F 3500 740 bacon
 F 550 740 chicken
-F 3550 740 chicken
 F 750 740 burger
-F 3750 740 burger
 F 800 740 pizza
-F 3800 740 pizza
 F 850 740 bacon
-F 3850 740 bacon
 F 900 740 chicken
-F 3900 740 chicken
 F 1150 740 burger
-F 4150 740 burger
 F 1200 740 pizza
-F 4200 740 pizza
 F 1250 740 bacon
-F 4250 740 bacon
 F 1450 740 chicken
-F 4450 740 chicken
 F 1500 740 burger
-F 4500 740 burger
 F 1550 740 pizza
-F 4550 740 pizza
 F 1750 740 bacon
-F 4750 740 bacon
 F 1800 740 chicken
-F 4800 740 chicken
 F 1850 740 burger
-F 4850 740 burger
 F 2150 740 pizza
-F 5150 740 pizza
 F 2200 740 bacon
-F 5200 740 bacon
 F 2250 740 chicken
-F 5250 740 chicken
 F 2450 740 burger
-F 5450 740 burger
 F 2500 740 pizza
-F 5500 740 pizza
 F 2550 740 bacon
-F 5550 740 bacon
 F 2600 740 chicken
-F 5600 740 chicken
 F 2700 740 burger
-F 5700 740 burger
+F 2950 740 bacon         ; extended ground food
+F 3050 740 chicken
+F 3350 740 burger
+F 3400 740 pizza
+F 3450 740 bacon
+F 3650 740 burger
+F 3700 740 pizza
+F 3750 740 bacon
+F 4050 740 chicken
+F 4100 740 burger
 
 ; Upper platform food
 F 250 580 bacon
-F 3250 580 bacon
 F 300 580 chicken
-F 3300 580 chicken
 F 350 580 burger
-F 3350 580 burger
 F 650 520 pizza
-F 3650 520 pizza
 F 700 520 bacon
-F 3700 520 bacon
 F 350 460 chicken
-F 3350 460 chicken
 F 400 460 burger
-F 3400 460 burger
 F 750 400 pizza
-F 3750 400 pizza
 F 800 400 bacon
-F 3800 400 bacon
 F 850 400 chicken
-F 3850 400 chicken
 F 1100 500 burger
-F 4100 500 burger
 F 1150 500 pizza
-F 4150 500 pizza
 F 1200 500 bacon
-F 4200 500 bacon
 F 1350 420 chicken
-F 4350 420 chicken
 F 1400 420 burger
-F 4400 420 burger
 F 1650 460 pizza
-F 4650 460 pizza
 F 1700 460 bacon
-F 4700 460 bacon
 F 1750 460 chicken
-F 4750 460 chicken
 F 1950 380 burger
-F 4950 380 burger
 F 2000 380 pizza
-F 5000 380 pizza
 F 2250 480 bacon
-F 5250 480 bacon
 F 2300 480 chicken
-F 5300 480 chicken
 F 2550 400 burger
-F 5550 400 burger
 F 2600 400 pizza
-F 5600 400 pizza
 F 2650 400 bacon
-F 5650 400 bacon
+F 3150 580 chicken      ; extended upper food
+F 3200 580 burger
+F 3550 520 pizza
+F 3250 460 chicken
+F 3650 400 pizza
+F 3950 500 burger
 
 ; Mid platform food
 F 550 300 chicken
-F 3550 300 chicken
 F 600 300 burger
-F 3600 300 burger
 F 650 300 pizza
-F 3650 300 pizza
 F 950 260 bacon
-F 3950 260 bacon
 F 1000 260 chicken
-F 4000 260 chicken
 F 1250 300 burger
-F 4250 300 burger
 F 1300 300 pizza
-F 4300 300 pizza
 F 1350 300 bacon
-F 4350 300 bacon
 F 1550 260 chicken
-F 4550 260 chicken
 F 1600 260 burger
-F 4600 260 burger
 F 1850 300 pizza
-F 4850 300 pizza
 F 1900 300 bacon
-F 4900 300 bacon
 F 2150 260 chicken
-F 5150 260 chicken
 F 2200 260 burger
-F 5200 260 burger
 F 2550 280 pizza
-F 5550 280 pizza
 F 2600 280 bacon
-F 5600 280 bacon
+F 3450 300 chicken      ; extended mid food
+F 3850 260 bacon
+F 4150 300 burger
 
 ; High platform food
 F 450 180 bacon
-F 3450 180 bacon
 F 500 180 chicken
-F 3500 180 chicken
 F 850 160 burger
-F 3850 160 burger
 F 900 160 pizza
-F 3900 160 pizza
 F 1250 180 bacon
-F 4250 180 bacon
 F 1300 180 chicken
-F 4300 180 chicken
 F 1650 160 burger
-F 4650 160 burger
 F 1700 160 pizza
-F 4700 160 pizza
 F 2150 180 bacon
-F 5150 180 bacon
 F 2200 180 chicken
-F 5200 180 chicken
 F 2250 180 burger
-F 5250 180 burger
 F 2400 180 pizza
-F 5400 180 pizza
+F 3350 180 bacon         ; extended high food
+F 3750 160 burger
+F 3800 160 pizza

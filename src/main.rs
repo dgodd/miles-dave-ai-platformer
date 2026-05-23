@@ -397,11 +397,9 @@ impl Game {
     }
 
     fn reset(&mut self) {
+        let current_level = self.level;
         *self = Self::new();
-        self.state = GameState::Playing;
-        self.level_complete = false;
-        self.complete_timer = 0.0;
-        self.level = 1;
+        self.start_level(current_level.max(1));
     }
 
     fn next_level(&mut self) {
