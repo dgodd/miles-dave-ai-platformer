@@ -206,6 +206,7 @@ struct Baby {
     /// Time accumulator for crawl animation.
     crawl_time: f32,
     flee_timer: f32,
+    is_cat: bool,
 }
 
 impl Baby {
@@ -220,7 +221,15 @@ impl Baby {
             floor_y,
             crawl_time: 0.0,
             flee_timer: 0.0,
+            is_cat: false,
         }
+    }
+
+    fn new_cat(x: f32, floor_y: f32, min_x: f32, max_x: f32) -> Self {
+        let mut b = Self::new(x, floor_y, min_x, max_x);
+        b.is_cat = true;
+        b.size = vec2(22.0, 20.0);
+        b
     }
 
     fn rect(&self) -> Rect {
@@ -408,6 +417,7 @@ impl Game {
         let data = match level {
             1 => include_str!("../levels/level1.txt"),
             3 => include_str!("../levels/level3.txt"),
+            4 => include_str!("../levels/level4.txt"),
             _ => include_str!("../levels/level2.txt"),
         };
         parse_level(data, floor_y)
@@ -600,13 +610,18 @@ impl Game {
             for baby in &self.babies {
                 if self.player.rect().intersect(baby.rect()).is_some() {
                     if !self.dev_mode && self.invincible_timer <= 0.0 {
+                        let msg = if baby.is_cat {
+                            "The cat scratched your nose"
+                        } else {
+                            "The baby pulled your tail"
+                        };
                         if self.hearts > 1 {
                             self.hearts -= 1;
                             self.play_ouch = true;
                             self.invincible_timer = 2.0;
-                            self.death_message = "The baby pulled your tail".to_string();
+                            self.death_message = msg.to_string();
                         } else {
-                            self.death_message = "The baby pulled your tail".to_string();
+                            self.death_message = msg.to_string();
                             self.die();
                         }
                     }
@@ -688,7 +703,11 @@ impl Game {
         for baby in &self.babies {
             let bx = baby.pos.x + baby.size.x / 2.0 - cam.x;
             let by = baby.pos.y + baby.size.y / 2.0 - cam.y;
-            draw_baby_sprite(bx, by, baby);
+            if baby.is_cat {
+                draw_cat_sprite(bx, by, baby);
+            } else {
+                draw_baby_sprite(bx, by, baby);
+            }
         }
 
         // ── Goal ball ──────────────────────────────────────────────────
@@ -766,7 +785,7 @@ impl Game {
             draw_text(&food_info, 16.0, 68.0, 26.0, Color::from_hex(0xf0c860));
         }
         // Hearts (filled and empty)
-        for i in 0..3 {
+        for i in 0..4 {
             let hx = 130.0 + i as f32 * 39.0;
             let hy = 30.0;
             if i < self.hearts {
@@ -963,7 +982,7 @@ impl Game {
         let start_x = (cw - total_w) / 2.0;
         let start_y = ch * 0.35;
 
-        for i in 0..3 {
+        for i in 0..4 {
             let col = i % cols;
             let row = i / cols;
             let bx = start_x + col as f32 * (bw + spacing);
@@ -1324,6 +1343,77 @@ fn draw_baby_sprite(cx: f32, cy: f32, b: &Baby) {
     draw_circle(head_x + 1.0, head_y + 4.0, 2.0, Color::from_hex(0x4a2010));
     draw_circle(head_x + 1.0, head_y + 4.0, 1.2, Color::from_hex(0xcc3333));
 }
+/// Draw a cat at the given centre position (replaces baby sprite for cats).
+fn draw_cat_sprite(cx: f32, cy: f32, b: &Baby) {
+    let flip = if b.facing_right { 1.0 } else { -1.0 };
+    let t = b.crawl_time;
+    let crawl = (t * 7.0).sin();
+    let ox = |dx: f32| cx + dx * flip;
+
+    // ── Body (orange tabby) ──────────────────────────────────────────
+    let body_cy = cy + 1.0;
+    draw_rectangle(ox(-5.0), body_cy - 4.0, 10.0, 8.0, Color::from_hex(0xe09040));
+    draw_rectangle(ox(-5.0), body_cy - 4.0, 10.0, 3.0, Color::from_hex(0xf0a060));
+
+    // ── Tail (curled up) ─────────────────────────────────────────────
+    let tail_base_x = ox(-6.0);
+    let tail_tip_x = ox(-9.0) + crawl * 1.5;
+    draw_line(tail_base_x, body_cy, tail_tip_x, body_cy - 8.0, 3.0, Color::from_hex(0xe09040));
+    draw_circle(tail_tip_x, body_cy - 8.0, 2.5, Color::from_hex(0xf0a060));
+
+    // ── Back legs ────────────────────────────────────────────────────
+    let bl_x = ox(-3.0) - crawl * 2.0;
+    draw_rectangle(bl_x - 1.5, body_cy + 3.0, 3.0, 5.0, Color::from_hex(0xe09040));
+    draw_circle(bl_x, body_cy + 8.0, 2.0, Color::from_hex(0xd08030));
+
+    // ── Front legs ───────────────────────────────────────────────────
+    let fl_x = ox(3.0) + crawl * 2.0;
+    draw_rectangle(fl_x - 1.5, body_cy + 3.0, 3.0, 5.0, Color::from_hex(0xe09040));
+    draw_circle(fl_x, body_cy + 8.0, 2.0, Color::from_hex(0xd08030));
+
+    // ── Head ─────────────────────────────────────────────────────────
+    let head_x = ox(6.0);
+    let head_y = cy - 4.0;
+
+    // Pointy ears
+    // Back ear
+    draw_triangle(
+        vec2(ox(3.0), head_y - 3.0),
+        vec2(ox(5.0), head_y - 3.0),
+        vec2(ox(4.0), head_y - 9.0),
+        Color::from_hex(0xd08030),
+    );
+    // Front ear
+    draw_triangle(
+        vec2(ox(7.0), head_y - 3.0),
+        vec2(ox(9.0), head_y - 3.0),
+        vec2(ox(8.0), head_y - 9.0),
+        Color::from_hex(0xd08030),
+    );
+
+    // Head
+    draw_circle(head_x, head_y, 6.0, Color::from_hex(0xe09040));
+    draw_circle(head_x, head_y - 1.0, 4.5, Color::from_hex(0xf0a060));
+
+    // Eyes (slanted cat eyes)
+    draw_circle(head_x - 1.5, head_y - 1.5, 2.5, Color::from_hex(0x90e060));
+    draw_circle(head_x + 3.5, head_y - 1.5, 2.5, Color::from_hex(0x90e060));
+    let p_off = if b.facing_right { 1.0 } else { -1.0 };
+    draw_rectangle(head_x - 2.0 + p_off * 0.5, head_y - 2.0, 3.0, 1.5, EYE_PUPIL);
+    draw_rectangle(head_x + 2.5 + p_off * 0.5, head_y - 2.0, 3.0, 1.5, EYE_PUPIL);
+
+    // Whiskers
+    draw_line(ox(2.0), head_y + 1.0, ox(-2.0), head_y + 2.0, 1.0, Color::from_hex(0xcccccc));
+    draw_line(ox(2.0), head_y + 2.0, ox(-2.0), head_y + 4.0, 1.0, Color::from_hex(0xcccccc));
+    draw_line(ox(10.0), head_y + 1.0, ox(14.0), head_y + 2.0, 1.0, Color::from_hex(0xcccccc));
+    draw_line(ox(10.0), head_y + 2.0, ox(14.0), head_y + 4.0, 1.0, Color::from_hex(0xcccccc));
+
+    // Nose (pink triangle)
+    draw_circle(head_x + 1.0, head_y + 2.5, 1.5, Color::from_hex(0xff8888));
+
+    // Mouth
+    draw_line(head_x - 0.5, head_y + 3.5, head_x + 2.5, head_y + 3.5, 1.0, Color::from_hex(0x885555));
+}
 
 // ── Poop sprite drawing ─────────────────────────────────────────────────────
 
@@ -1394,6 +1484,13 @@ fn parse_level(data: &str, floor_y: f32) -> LevelData {
                 let min_x: f32 = parts[3].parse().unwrap_or(0.0);
                 let max_x: f32 = parts[4].parse().unwrap_or(200.0);
                 babies.push(Baby::new(x, fy, min_x, max_x));
+            }
+            "C" if parts.len() >= 5 => {
+                let x: f32 = parts[1].parse().unwrap_or(0.0);
+                let fy: f32 = parts[2].parse().unwrap_or(floor_y);
+                let min_x: f32 = parts[3].parse().unwrap_or(0.0);
+                let max_x: f32 = parts[4].parse().unwrap_or(200.0);
+                babies.push(Baby::new_cat(x, fy, min_x, max_x));
             }
             "F" if parts.len() >= 4 => {
                 let x: f32 = parts[1].parse().unwrap_or(0.0);
@@ -1651,7 +1748,7 @@ async fn main() {
                     let start_x = (cw - total_w) / 2.0;
                     let start_y = ch * 0.35;
 
-                    for i in 0..3 {
+                    for i in 0..4 {
                         let col = i % cols;
                         let row = i / cols;
                         let bx = start_x + col as f32 * (bw + spacing);
