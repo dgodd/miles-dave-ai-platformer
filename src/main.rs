@@ -353,6 +353,7 @@ struct Game {
     death_message: String,
     played_death_sound: bool,
     play_ouch: bool,
+    play_cheer: bool,
     dev_mode: bool,
     hearts: u32,
     invincible_timer: f32,
@@ -388,6 +389,7 @@ impl Game {
             death_message: String::new(),
             played_death_sound: false,
             play_ouch: false,
+            play_cheer: false,
             dev_mode: false,
             hearts: 3,
             invincible_timer: 0.0,
@@ -1538,6 +1540,7 @@ async fn main() {
     let poop_sound = audio::load_sound("assets/poop.wav").await.ok();
     let death_sound = audio::load_sound("assets/death.wav").await.ok();
     let ouch_sound = audio::load_sound("assets/ouch.wav").await.ok();
+    let cheer_sound = audio::load_sound("assets/cheer.wav").await.ok();
 
     let mut game = Game::new();
 
@@ -1557,6 +1560,12 @@ async fn main() {
         if game.play_ouch {
             game.play_ouch = false;
             if let Some(s) = &ouch_sound {
+                audio::play_sound_once(s);
+            }
+        }
+        if game.play_cheer {
+            game.play_cheer = false;
+            if let Some(s) = &cheer_sound {
                 audio::play_sound_once(s);
             }
         }
@@ -1856,6 +1865,7 @@ async fn main() {
                         ball.collected = true;
                         game.level_complete = true;
                         game.complete_timer = 0.5;
+                        game.play_cheer = true;
                         for _ in 0..35 {
                             let angle = (mq_rand::rand() as f32 / u32::MAX as f32) * std::f32::consts::TAU;
                             let speed = (mq_rand::rand() as f32 / u32::MAX as f32) * 300.0 + 100.0;
