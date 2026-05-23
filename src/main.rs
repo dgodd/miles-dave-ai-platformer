@@ -1552,7 +1552,7 @@ async fn main() {
                                 vel: vec2(angle.cos() * speed, angle.sin() * speed),
                                 lifetime: (mq_rand::rand() as f32 / u32::MAX as f32) * 0.8 + 0.3,
                                 size,
-                                color_override: Some(Color::from_hex(0x3cb371)),
+                                color_override: Some(ball.color),
                             });
                         }
                     }
