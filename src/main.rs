@@ -376,6 +376,8 @@ struct Game {
     food_total: u32,
     level_complete: bool,
     complete_timer: f32,
+    pee_mode: bool,
+    done_pee: bool,
     tree_x: f32,
 }
 
@@ -412,6 +414,8 @@ impl Game {
             level: 1,
             level_complete: false,
             complete_timer: 0.0,
+            pee_mode: false,
+            done_pee: false,
             tree_x: 0.0,
         }
     }
@@ -552,6 +556,12 @@ impl Game {
             self.player.vel.y *= 0.5;
         }
 
+        // ── Dev mode: hold Space/W/Up to fly upward ────────────────
+        if self.dev_mode && (is_key_down(KeyCode::Space) || is_key_down(KeyCode::W) || is_key_down(KeyCode::Up)) {
+            self.player.vel.y = JUMP_VELOCITY;
+            self.player.grounded = false;
+        }
+
         self.player.pos += self.player.vel * dt;
 
         // ── Platform collisions ─────────────────────────────────────────
@@ -613,7 +623,7 @@ impl Game {
         }
 
         // ── Baby collisions ─────────────────────────────────────────────
-        if !self.player.dead {
+        if !self.player.dead && !self.pee_mode {
             for baby in &self.babies {
                 if self.player.rect().intersect(baby.rect()).is_some() {
                     if !self.dev_mode && self.invincible_timer <= 0.0 {
@@ -622,14 +632,27 @@ impl Game {
                         } else {
                             "The baby pulled your tail"
                         };
-                        if self.hearts > 1 {
-                            self.hearts -= 1;
-                            self.play_ouch = true;
-                            self.invincible_timer = 2.0;
-                            self.death_message = msg.to_string();
+                        if baby.is_cat {
+                            // Cats deal 2 hearts of damage
+                            if self.hearts > 2 {
+                                self.hearts -= 2;
+                                self.play_ouch = true;
+                                self.invincible_timer = 2.0;
+                                self.death_message = msg.to_string();
+                            } else {
+                                self.death_message = msg.to_string();
+                                self.die();
+                            }
                         } else {
-                            self.death_message = msg.to_string();
-                            self.die();
+                            if self.hearts > 1 {
+                                self.hearts -= 1;
+                                self.play_ouch = true;
+                                self.invincible_timer = 2.0;
+                                self.death_message = msg.to_string();
+                            } else {
+                                self.death_message = msg.to_string();
+                                self.die();
+                            }
                         }
                     }
                     break;
@@ -674,26 +697,27 @@ impl Game {
         let cam = self.camera_offset();
 
         // ── Platforms ───────────────────────────────────────────────────
-        for plat in &self.platforms {
-            let sx = plat.pos.x - cam.x;
-            let sy = plat.pos.y - cam.y;
-            draw_rectangle(sx, sy, plat.size.x, plat.size.y, Color::from_hex(0x16213e));
-            draw_rectangle(sx + 2.0, sy + 2.0, plat.size.x - 4.0, plat.size.y - 4.0, Color::from_hex(0x0f3460));
-            draw_line(sx + 4.0, sy + 1.0, sx + plat.size.x - 4.0, sy + 1.0, 2.0, Color::from_hex(0x533483));
-        }
+        if !self.pee_mode {
+            for plat in &self.platforms {
+                let sx = plat.pos.x - cam.x;
+                let sy = plat.pos.y - cam.y;
+                draw_rectangle(sx, sy, plat.size.x, plat.size.y, Color::from_hex(0x16213e));
+                draw_rectangle(sx + 2.0, sy + 2.0, plat.size.x - 4.0, plat.size.y - 4.0, Color::from_hex(0x0f3460));
+                draw_line(sx + 4.0, sy + 1.0, sx + plat.size.x - 4.0, sy + 1.0, 2.0, Color::from_hex(0x533483));
+            }
 
-        // ── Spikes ──────────────────────────────────────────────────────
-        for spike in &self.spikes {
-            spike.draw(cam);
-        }
+            // ── Spikes ──────────────────────────────────────────────────────
+            for spike in &self.spikes {
+                spike.draw(cam);
+            }
 
-        // ── Lava pits ──────────────────────────────────────────────────
-        for lava in &self.lava_pits {
-            lava.draw(cam);
-        }
+            // ── Lava pits ──────────────────────────────────────────────────
+            for lava in &self.lava_pits {
+                lava.draw(cam);
+            }
 
-        // ── Level 3 instruction sign (behind everything) ───────────────
-        if self.level == 3 && self.state == GameState::Playing {
+            // ── Level 3 instruction sign (behind everything) ───────────────
+            if self.level == 3 && self.state == GameState::Playing {
             let sign_x = 30.0 - cam.x;
             let sign_y = 700.0 - cam.y;
             let sign_w = 520.0;
@@ -705,15 +729,18 @@ impl Game {
             draw_text(msg, sign_x + (sign_w - msg_size.width) / 2.0, sign_y + sign_h / 2.0 + 6.0,
                       18.0, Color::from_hex(0xf0c860));
         }
+        }
 
         // ── Babies ──────────────────────────────────────────────────────
-        for baby in &self.babies {
-            let bx = baby.pos.x + baby.size.x / 2.0 - cam.x;
-            let by = baby.pos.y + baby.size.y / 2.0 - cam.y;
-            if baby.is_cat {
-                draw_cat_sprite(bx, by, baby);
-            } else {
-                draw_baby_sprite(bx, by, baby);
+        if !self.pee_mode {
+            for baby in &self.babies {
+                let bx = baby.pos.x + baby.size.x / 2.0 - cam.x;
+                let by = baby.pos.y + baby.size.y / 2.0 - cam.y;
+                if baby.is_cat {
+                    draw_cat_sprite(bx, by, baby);
+                } else {
+                    draw_baby_sprite(bx, by, baby);
+                }
             }
         }
 
@@ -757,6 +784,7 @@ impl Game {
         }
 
         // ── Food ───────────────────────────────────────────────────────
+        if !self.pee_mode {
         for food in &self.foods {
             if !food.collected {
                 let sx = food.pos.x - cam.x;
@@ -764,14 +792,17 @@ impl Game {
                 draw_food_sprite(sx, sy, &food.kind);
             }
         }
+        }
 
         // ── Poops ──────────────────────────────────────────────────────
+        if !self.pee_mode {
         for poop in &self.poops {
             if !poop.eaten {
                 let sx = poop.pos.x - cam.x;
                 let sy = poop.pos.y - cam.y;
                 draw_poop_sprite(sx, sy);
             }
+        }
         }
 
         // ── Player ──────────────────────────────────────────────────────
@@ -782,6 +813,31 @@ impl Game {
                 let psy = self.player.pos.y + self.player.size.y / 2.0 - cam.y;
                 draw_dog_sprite(psx, psy, &self.player, DOG_SCALE);
             }
+        }
+
+        // ── Tree in pee mode (level 4) ────────────────────────────
+        if self.pee_mode {
+            let tree_h = PLAYER_HEIGHT * DOG_SCALE * 3.0;
+            let tree_cx = self.tree_x - cam.x;
+            let mut tree_ground = (screen_height() - 40.0) - cam.y;
+            for plat in &self.platforms {
+                if self.tree_x > plat.pos.x && self.tree_x < plat.pos.x + plat.size.x {
+                    tree_ground = plat.pos.y - cam.y;
+                    break;
+                }
+            }
+            draw_tree(tree_cx - 30.0, tree_ground, tree_h);
+        }
+
+        // ── Pee stream (level 4 final scene) ───────────────────────
+        if self.pee_mode && !self.done_pee && is_key_down(KeyCode::E) {
+            let flip: f32 = if self.player.facing_right { 1.0 } else { -1.0 };
+            let dog_bum_x = self.player.pos.x + self.player.size.x / 2.0 - 15.0 * flip * DOG_SCALE;
+            let dog_bum_y = self.player.pos.y + self.player.size.y / 2.0 - 5.0;
+            let sx = dog_bum_x - cam.x - 6.0;
+            let sy = dog_bum_y - cam.y;
+            draw_rectangle(sx, sy, 12.0, 100.0, Color::from_hex(0xcccc00));
+            draw_rectangle(sx + 1.0, sy, 10.0, 100.0, Color::from_hex(0xeeee44));
         }
 
         // ── Particles ──────────────────────────────────────────────────
@@ -795,6 +851,7 @@ impl Game {
         }
 
         // ── HUD ─────────────────────────────────────────────────────────
+        if !self.pee_mode {
         let food_info = if self.food_total > 0 {
             format!("Food: {}/{}  ", self.food_collected, self.food_total)
         } else {
@@ -805,9 +862,10 @@ impl Game {
         if self.food_total > 0 {
             draw_text(&food_info, 16.0, 68.0, 26.0, Color::from_hex(0xf0c860));
         }
-        // Hearts (filled and empty)
-        for i in 0..3 {
-            let hx = 130.0 + i as f32 * 39.0;
+        // Hearts (filled and empty) — 4th slot appears only after getting it
+        let max_hearts = if self.done_pee { 4 } else { 3 };
+        for i in 0..max_hearts {
+            let hx = 130.0 + i as f32 * 36.0;
             let hy = 30.0;
             if i < self.hearts {
                 draw_heart(hx, hy, 13.0, Color::from_hex(0xe94560));
@@ -817,6 +875,7 @@ impl Game {
         }
 
         draw_text("Arrow keys / WASD to move, Space to jump  |  Q to poop  |  R to reset", 16.0, screen_height() - 16.0, 21.0, Color::from_hex(0x666666));
+        }
 
         // ── Death overlay ───────────────────────────────────────────────
         if self.player.dead && self.death_timer <= 0.0 {
@@ -834,7 +893,7 @@ impl Game {
         }
 
         // ── Level complete overlay ──────────────────────────────────────
-        if self.level_complete && self.complete_timer <= 0.0 {
+        if self.level_complete {
             draw_rectangle(0.0, 0.0, screen_width(), screen_height(),
                            Color::from_rgba(0, 0, 0, 180));
 
@@ -844,9 +903,63 @@ impl Game {
             draw_text(&level_str, screen_width() / 2.0 - title_size.width / 2.0, screen_height() / 2.0 - 20.0,
                       48.0, ball_color);
 
-            let subtitle = "The dog fetched the ball!  Press Space for next level";
+            let subtitle = if self.level == 4 {
+                "The dog fetched the ball!"
+            } else {
+                "The dog fetched the ball!  Press Space for next level"
+            };
             let sub_size = measure_text(subtitle, None, 22, 1.0);
             draw_text(subtitle, screen_width() / 2.0 - sub_size.width / 2.0, screen_height() / 2.0 + 30.0,
+                      22.0, Color::from_hex(0xaaaaaa));
+        }
+
+        // ── Find tree ground for sign/chicken placement ──────────
+        let tree_h = PLAYER_HEIGHT * DOG_SCALE * 3.0;
+        let mut tree_ground = (screen_height() - 40.0) - cam.y;
+        for plat in &self.platforms {
+            if self.tree_x > plat.pos.x && self.tree_x < plat.pos.x + plat.size.x {
+                tree_ground = plat.pos.y - cam.y;
+                break;
+            }
+        }
+
+        // ── Pee mode sign (above tree, like level 3) ──────────────
+        if self.pee_mode && !self.done_pee {
+            let sign_x = (self.tree_x - 30.0) - cam.x - 260.0;
+            let sign_y = tree_ground - tree_h - 70.0;
+            let sign_w = 520.0;
+            let sign_h = 50.0;
+            draw_rectangle(sign_x, sign_y, sign_w, sign_h, Color::from_rgba(20, 15, 40, 220));
+            draw_rectangle(sign_x + 2.0, sign_y + 2.0, sign_w - 4.0, sign_h - 4.0, Color::from_rgba(30, 25, 55, 220));
+            let msg = "You can pee on anything using E!  Let's start with this tree";
+            let msg_size = measure_text(msg, None, 18, 1.0);
+            draw_text(msg, sign_x + (sign_w - msg_size.width) / 2.0, sign_y + sign_h / 2.0 + 6.0,
+                      18.0, Color::from_hex(0xf0c860));
+        }
+
+        // ── Done pee: reward sign + roast chicken ──────────────────
+        if self.done_pee {
+            // Sign above tree
+            let sign_x = (self.tree_x - 30.0) - cam.x - 330.0;
+            let sign_y = tree_ground - tree_h - 70.0;
+            let sign_w = 660.0;
+            let sign_h = 50.0;
+            draw_rectangle(sign_x, sign_y, sign_w, sign_h, Color::from_rgba(20, 15, 40, 220));
+            draw_rectangle(sign_x + 2.0, sign_y + 2.0, sign_w - 4.0, sign_h - 4.0, Color::from_rgba(30, 25, 55, 220));
+            let msg = "This roast chicken will turn you into a way more powerful dog";
+            let msg_size = measure_text(msg, None, 18, 1.0);
+            draw_text(msg, sign_x + (sign_w - msg_size.width) / 2.0, sign_y + sign_h / 2.0 + 6.0,
+                      18.0, Color::from_hex(0xf0c860));
+
+            // Roast chicken on the ground near the tree
+            let chicken_x = (self.tree_x - 80.0) - cam.x;
+            let chicken_y = tree_ground - 20.0;
+            draw_food_sprite(chicken_x, chicken_y, &FoodType::Chicken);
+
+            // Small screen-space prompt
+            let sub = "Press Space to return to menu";
+            let ss = measure_text(sub, None, 22, 1.0);
+            draw_text(sub, (screen_width() - ss.width) / 2.0, screen_height() - 30.0,
                       22.0, Color::from_hex(0xaaaaaa));
         }
 
@@ -1848,6 +1961,7 @@ async fn main() {
                 if !game.player.dead && !game.level_complete {
                     game.update_player(dt);
 
+                    if !game.pee_mode {
                     for baby in &mut game.babies {
                         if baby.flee_timer > 0.0 {
                             baby.flee_timer -= dt;
@@ -1902,6 +2016,7 @@ async fn main() {
                             }
                         }
                     }
+                    }
 
                     if is_key_pressed(KeyCode::Q) {
                         let flip: f32 = if game.player.facing_right { 1.0 } else { -1.0 };
@@ -1943,7 +2058,45 @@ async fn main() {
                     game.reset();
                 }
 
-                if game.level_complete && game.complete_timer <= 0.0 && is_key_pressed(KeyCode::Space) {
+                if game.pee_mode && !game.done_pee && is_key_down(KeyCode::E) {
+                    // Dropping yellow droplets from the dog's bum
+                    let flip: f32 = if game.player.facing_right { 1.0 } else { -1.0 };
+                    let dog_bum_x = game.player.pos.x + game.player.size.x / 2.0 - 15.0 * flip * DOG_SCALE;
+                    let dog_bum_y = game.player.pos.y + game.player.size.y / 2.0 - 5.0;
+                    // Spawn a falling droplet
+                    game.particles.push(Particle {
+                        pos: vec2(dog_bum_x, dog_bum_y),
+                        vel: vec2(0.0, 120.0),
+                        lifetime: 0.8,
+                        size: 5.0,
+                        color_override: Some(Color::from_hex(0xcccc00)),
+                    });
+                    // Check if the stream hits the tree (vertical rectangle from dog bum)
+                    let stream_left = dog_bum_x - 6.0;
+                    let stream_right = dog_bum_x + 6.0;
+                    let stream_top = dog_bum_y;
+                    let stream_bottom = dog_bum_y + 100.0;
+                    let tree_left = game.tree_x - 30.0;
+                    let tree_right = game.tree_x + 30.0;
+                    let tree_top = (screen_height() - 40.0) - PLAYER_HEIGHT * DOG_SCALE * 3.0;
+                    let tree_bottom = screen_height() - 40.0;
+                    if stream_left < tree_right && stream_right > tree_left
+                        && stream_top < tree_bottom && stream_bottom > tree_top
+                    {
+                        game.hearts = 4;
+                        game.done_pee = true;
+                    }
+                }
+                if game.done_pee && is_key_pressed(KeyCode::Space) {
+                    game.state = GameState::Title;
+                }
+                // Level 4: auto-transition to pee mode after timer expires
+                if game.level_complete && game.complete_timer <= 0.0 && game.level == 4 {
+                    game.pee_mode = true;
+                    game.level_complete = false;
+                }
+                // Other levels: Space to continue (or skip timer)
+                if game.level_complete && is_key_pressed(KeyCode::Space) && game.level != 4 {
                     game.next_level();
                 }
 
@@ -1996,7 +2149,7 @@ async fn main() {
                     if game.player.rect().intersect(ball.rect()).is_some() && can_fetch {
                         ball.collected = true;
                         game.level_complete = true;
-                        game.complete_timer = 0.5;
+                        game.complete_timer = if game.level == 4 { 3.0 } else { 0.5 };
                         game.play_cheer = true;
                         for _ in 0..35 {
                             let angle = (mq_rand::rand() as f32 / u32::MAX as f32) * std::f32::consts::TAU;
