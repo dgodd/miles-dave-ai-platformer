@@ -995,32 +995,32 @@ fn draw_golden_tennis_ball(cx: f32, cy: f32, radius: f32) {
 
 /// Draw a heart shape using overlapping circles.
 fn draw_heart(cx: f32, cy: f32, size: f32, color: Color) {
-    let r = size * 0.5;
-    let off = size * 0.45;
-    // Top bumps (spread apart for visible cleft)
-    draw_circle(cx - off, cy - off * 0.15, r, color);
-    draw_circle(cx + off, cy - off * 0.15, r, color);
-    // Lower fill
-    draw_circle(cx, cy + off * 0.15, r * 0.85, color);
+    let r = size * 0.45;
+    let off = size * 0.28;
+    // Top bumps lifted high for deep cleft between them
+    draw_circle(cx - off, cy - off * 0.8, r, color);
+    draw_circle(cx + off, cy - off * 0.8, r, color);
+    // Lower fill between bumps and point
+    draw_circle(cx, cy + off * 0.2, r * 0.8, color);
     // Point
     draw_triangle(
-        vec2(cx - off * 1.1, cy + off * 0.1),
-        vec2(cx + off * 1.1, cy + off * 0.1),
-        vec2(cx, cy + size * 0.8),
+        vec2(cx - off * 1.3, cy + off * 0.1),
+        vec2(cx + off * 1.3, cy + off * 0.1),
+        vec2(cx, cy + size * 0.75),
         color,
     );
 }
 
 /// Draw a heart outline (empty heart) at the given position.
 fn draw_heart_outline(cx: f32, cy: f32, size: f32, color: Color) {
-    let r = size * 0.5;
-    let off = size * 0.45;
-    draw_circle_lines(cx - off, cy - off * 0.15, r, 1.5, color);
-    draw_circle_lines(cx + off, cy - off * 0.15, r, 1.5, color);
-    draw_circle_lines(cx, cy + off * 0.15, r * 0.85, 1.5, color);
-    let tip = vec2(cx, cy + size * 0.8);
-    let left = vec2(cx - off * 1.1, cy + off * 0.1);
-    let right = vec2(cx + off * 1.1, cy + off * 0.1);
+    let r = size * 0.45;
+    let off = size * 0.28;
+    draw_circle_lines(cx - off, cy - off * 0.8, r, 1.5, color);
+    draw_circle_lines(cx + off, cy - off * 0.8, r, 1.5, color);
+    draw_circle_lines(cx, cy + off * 0.2, r * 0.8, 1.5, color);
+    let tip = vec2(cx, cy + size * 0.75);
+    let left = vec2(cx - off * 1.3, cy + off * 0.1);
+    let right = vec2(cx + off * 1.3, cy + off * 0.1);
     draw_line(left.x, left.y, tip.x, tip.y, 1.5, color);
     draw_line(right.x, right.y, tip.x, tip.y, 1.5, color);
 }
