@@ -960,52 +960,8 @@ fn draw_tennis_ball(cx: f32, cy: f32, radius: f32, main_color: Color, highlight_
 }
 
 /// Draw a golden tennis ball (original title screen variant).
-fn draw_golden_tennis_ball(cx: f32, cy: f32, radius: f32) {
+pub fn draw_golden_tennis_ball(cx: f32, cy: f32, radius: f32) {
     draw_tennis_ball(cx, cy, radius, Color::from_hex(0xd4c73c), Color::from_hex(0xe8da4a));
-}
-
-/// Draw a piece of food at the given position.
-fn draw_food_sprite(x: f32, y: f32, kind: &FoodType) {
-    match kind {
-        FoodType::Bacon => {
-            // Pink/red wavy strip
-            draw_rectangle(x - 5.0, y - 2.0, 10.0, 4.0, Color::from_hex(0xd4735c));
-            draw_rectangle(x - 4.0, y - 3.0, 8.0, 6.0, Color::from_hex(0xe88a75));
-            draw_rectangle(x - 6.0, y - 1.0, 12.0, 2.0, Color::from_hex(0xc06050));
-        }
-        FoodType::Chicken => {
-            // Yellow drumstick shape
-            draw_circle(x + 2.0, y, 5.0, Color::from_hex(0xe8b84a));
-            draw_circle(x + 2.0, y, 4.0, Color::from_hex(0xf0c860));
-            draw_rectangle(x - 3.0, y - 1.5, 3.0, 3.0, Color::from_hex(0xd4a030));
-        }
-        FoodType::Burger => {
-            // Brown bun with fillings
-            draw_circle(x, y - 1.0, 6.0, Color::from_hex(0xc07830));
-            draw_rectangle(x - 5.0, y - 1.0, 10.0, 4.0, Color::from_hex(0x6a994e));
-            draw_rectangle(x - 4.0, y + 1.0, 8.0, 2.0, Color::from_hex(0xe8c040));
-            draw_circle(x, y + 3.0, 5.0, Color::from_hex(0xb06828));
-        }
-        FoodType::Pizza => {
-            // Orange triangle slice
-            draw_triangle(
-                vec2(x - 6.0, y + 4.0),
-                vec2(x + 6.0, y + 4.0),
-                vec2(x, y - 5.0),
-                Color::from_hex(0xe8a030),
-            );
-            draw_triangle(
-                vec2(x - 4.0, y + 3.0),
-                vec2(x + 4.0, y + 3.0),
-                vec2(x, y - 3.0),
-                Color::from_hex(0xf0b840),
-            );
-            // Pepperoni
-            draw_circle(x, y - 2.0, 2.0, Color::from_hex(0xc04030));
-            draw_circle(x - 2.0, y + 1.0, 1.5, Color::from_hex(0xc04030));
-            draw_circle(x + 2.0, y + 1.0, 1.5, Color::from_hex(0xc04030));
-        }
-    }
 }
 
 /// Check if the mouse is currently over the given rectangle.
