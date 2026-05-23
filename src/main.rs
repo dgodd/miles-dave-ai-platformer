@@ -1705,7 +1705,7 @@ async fn main() {
                     if is_key_pressed(KeyCode::Q) {
                         let flip: f32 = if game.player.facing_right { 1.0 } else { -1.0 };
                         let px = game.player.pos.x + game.player.size.x / 2.0 - 8.0 * flip;
-                        let py = game.player.pos.y + game.player.size.y - 15.0;
+                        let py = game.player.pos.y + game.player.size.y - 5.0;
                         game.poops.push(Poop::new(px, py));
                     }
                 } else if game.death_timer <= 0.0 && is_key_pressed(KeyCode::Space) {
