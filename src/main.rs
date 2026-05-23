@@ -376,6 +376,7 @@ struct Game {
     food_total: u32,
     level_complete: bool,
     complete_timer: f32,
+    tree_x: f32,
 }
 
 impl Game {
@@ -411,6 +412,7 @@ impl Game {
             level: 1,
             level_complete: false,
             complete_timer: 0.0,
+            tree_x: 0.0,
         }
     }
 
@@ -442,7 +444,9 @@ impl Game {
         self.foods = foods;
         self.food_collected = 0;
         self.food_total = self.foods.len() as u32;
+        let tree_x = goal_ball.as_ref().map(|b| b.pos.x).unwrap_or(0.0);
         self.goal_ball = goal_ball;
+        self.tree_x = tree_x;
         self.level = next;
         self.poops.clear();
         self.particles.clear();
@@ -463,7 +467,9 @@ impl Game {
         self.foods = foods;
         self.food_collected = 0;
         self.food_total = self.foods.len() as u32;
+        let tree_x = goal_ball.as_ref().map(|b| b.pos.x).unwrap_or(0.0);
         self.goal_ball = goal_ball;
+        self.tree_x = tree_x;
         self.level = level;
         self.poops.clear();
         self.particles.clear();
@@ -717,8 +723,11 @@ impl Game {
         {
             let sx = ball.pos.x - cam.x;
             let sy = ball.pos.y - cam.y;
-            // Tree behind the ball
-            draw_tree(sx - 20.0, sy + 20.0, 30.0);
+            // Tree at fixed position near the ball (3x dog height)
+            let tree_h = PLAYER_HEIGHT * DOG_SCALE * 3.0;
+            let tree_cx = self.tree_x - cam.x;
+            let tree_ground = (screen_height() - 40.0) - cam.y;
+            draw_tree(tree_cx - 30.0, tree_ground, tree_h);
             let all_food = self.food_total == 0 || self.food_collected >= self.food_total;
             let display_color = if all_food {
                 ball.color
