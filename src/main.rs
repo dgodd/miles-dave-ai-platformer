@@ -1288,7 +1288,7 @@ fn draw_baby_sprite(cx: f32, cy: f32, b: &Baby) {
 
     // ── Body (torso — small, slightly tilted) ──────────────────────────
     let body_cy = cy + 1.0;
-    draw_rectangle(ox(-5.0), body_cy - 4.0, 10.0, 8.0, BABY_SKIN);
+    draw_rectangle(cx - 5.0, body_cy - 4.0, 10.0, 8.0, BABY_SKIN);
 
     // ── Diaper (round bottom) ──────────────────────────────────────────
     draw_circle(ox(0.0), body_cy + 4.0, 6.0, BABY_DIAPER);
@@ -1352,8 +1352,8 @@ fn draw_cat_sprite(cx: f32, cy: f32, b: &Baby) {
 
     // ── Body (orange tabby) ──────────────────────────────────────────
     let body_cy = cy + 1.0;
-    draw_rectangle(ox(-5.0), body_cy - 4.0, 10.0, 8.0, Color::from_hex(0xe09040));
-    draw_rectangle(ox(-5.0), body_cy - 4.0, 10.0, 3.0, Color::from_hex(0xf0a060));
+    draw_rectangle(cx - 5.0, body_cy - 4.0, 10.0, 8.0, Color::from_hex(0xe09040));
+    draw_rectangle(cx - 5.0, body_cy - 4.0, 10.0, 3.0, Color::from_hex(0xf0a060));
 
     // ── Tail (curled up) ─────────────────────────────────────────────
     let tail_base_x = ox(-6.0);
@@ -1511,6 +1511,7 @@ fn parse_level(data: &str, floor_y: f32) -> LevelData {
                     "blue" => Color::from_hex(0x4a90d9),
                     "red" => Color::from_hex(0xe94560),
                     "gold" | "yellow" => Color::from_hex(0xd4c73c),
+                    "purple" => Color::from_hex(0x9944cc),
                     _ => Color::from_hex(0x3cb371),
                 };
                 goal_ball = Some(GoalBall::new(x, y, color));
