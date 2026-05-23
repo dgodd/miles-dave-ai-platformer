@@ -144,7 +144,7 @@ struct Poop {
 
 impl Poop {
     fn new(x: f32, y: f32) -> Self {
-        Self { pos: vec2(x, y), vel_y: 200.0, lifetime: 10.0, eaten: false }
+        Self { pos: vec2(x, y), vel_y: 200.0, lifetime: 3.0, eaten: false }
     }
 
     fn rect(&self) -> Rect {
