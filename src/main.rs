@@ -309,6 +309,7 @@ enum GameState {
     Playing,
     Tutorial,
     LevelSelect,
+    Paused,
 }
 
 struct Game {
@@ -564,6 +565,7 @@ impl Game {
                 self.draw_level_select_screen();
                 return;
             }
+            GameState::Paused => {}
             GameState::Playing => {}
         }
 
@@ -675,6 +677,37 @@ impl Game {
             let sub_size = measure_text(subtitle, None, 22, 1.0);
             draw_text(subtitle, screen_width() / 2.0 - sub_size.width / 2.0, screen_height() / 2.0 + 30.0,
                       22.0, Color::from_hex(0xaaaaaa));
+        }
+
+        // ── Pause overlay ───────────────────────────────────────────────
+        if self.state == GameState::Paused {
+            draw_rectangle(0.0, 0.0, screen_width(), screen_height(),
+                           Color::from_rgba(0, 0, 0, 160));
+
+            let cw = screen_width();
+            let ch = screen_height();
+
+            let title = "PAUSED";
+            let ts = measure_text(title, None, 56, 1.0);
+            draw_text(title, (cw - ts.width) / 2.0, ch * 0.22, 56.0, Color::from_hex(0xe94560));
+
+            let bw = 220.0;
+            let bh = 50.0;
+            let bx = (cw - bw) / 2.0;
+            let start_y = ch * 0.38;
+            let gap = 60.0;
+            let items = ["Resume", "Main Menu", "Quit"];
+
+            for (i, name) in items.iter().enumerate() {
+                let iy = start_y + i as f32 * gap;
+                let hovered = is_mouse_over(bx, iy, bw, bh);
+                let bg = if hovered { Color::from_hex(0x533483) } else { Color::from_hex(0x16213e) };
+                draw_rectangle(bx, iy, bw, bh, bg);
+                draw_rectangle(bx + 2.0, iy + 2.0, bw - 4.0, bh - 4.0, Color::from_hex(0x0f3460));
+                let ls = measure_text(name, None, 28, 1.0);
+                draw_text(name, bx + (bw - ls.width) / 2.0, iy + bh / 2.0 + 10.0,
+                          28.0, Color::from_hex(0xcccccc));
+            }
         }
     }
 
@@ -1265,7 +1298,7 @@ async fn main() {
             true
         });
 
-        if game.state == GameState::Title || game.state == GameState::Tutorial || game.state == GameState::LevelSelect {
+        if game.state == GameState::Title || game.state == GameState::Tutorial || game.state == GameState::LevelSelect || game.state == GameState::Paused {
             // ── Title golden particles ─────────────────────────────────
             if game.state == GameState::Title {
                 let cw = screen_width();
@@ -1355,10 +1388,37 @@ async fn main() {
                 if is_key_pressed(KeyCode::Escape) {
                     game.state = GameState::Title;
                 }
-            } else {
+            } else if game.state == GameState::Tutorial {
                 // ── Tutorial screen input ──────────────────────────────
                 if is_key_pressed(KeyCode::Escape) {
                     game.state = GameState::Title;
+                }
+            }
+            if game.state == GameState::Paused {
+                // ── Pause menu input ────────────────────────────────────
+                if is_mouse_button_pressed(MouseButton::Left) {
+                    let (mx, my) = mouse_position();
+                    let cw = screen_width();
+                    let ch = screen_height();
+                    let bw = 220.0;
+                    let bh = 50.0;
+                    let bx = (cw - bw) / 2.0;
+                    let start_y = ch * 0.38;
+                    let gap = 60.0;
+
+                    if mx >= bx && mx <= bx + bw && my >= start_y && my <= start_y + bh {
+                        game.state = GameState::Playing; // Resume
+                    }
+                    if mx >= bx && mx <= bx + bw && my >= start_y + gap && my <= start_y + gap + bh {
+                        game.state = GameState::Title; // Main Menu
+                        game.level_complete = false;
+                    }
+                    if mx >= bx && mx <= bx + bw && my >= start_y + gap * 2.0 && my <= start_y + gap * 2.0 + bh {
+                        std::process::exit(0); // Quit
+                    }
+                }
+                if is_key_pressed(KeyCode::Escape) {
+                    game.state = GameState::Playing; // Resume
                 }
             }
         } else {
@@ -1435,6 +1495,10 @@ async fn main() {
 
                 if is_key_pressed(KeyCode::R) {
                     game.reset();
+                }
+
+                if is_key_pressed(KeyCode::Escape) {
+                    game.state = GameState::Paused;
                 }
 
                 // ── Goal ball update ────────────────────────────────────────
