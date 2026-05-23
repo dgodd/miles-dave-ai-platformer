@@ -234,7 +234,7 @@ struct GoalBall {
 
 impl GoalBall {
     fn new(x: f32, y: f32, color: Color) -> Self {
-        let range = 250.0;
+        let range = 150.0;
         Self {
             pos: vec2(x, y),
             vel: vec2(80.0, 0.0),
