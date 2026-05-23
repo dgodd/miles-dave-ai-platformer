@@ -749,11 +749,15 @@ impl Game {
         if self.food_total > 0 {
             draw_text(&food_info, 12.0, 52.0, 20.0, Color::from_hex(0xf0c860));
         }
-        // Hearts
-        for i in 0..self.hearts {
+        // Hearts (filled and empty)
+        for i in 0..3 {
             let hx = 100.0 + i as f32 * 30.0;
             let hy = 24.0;
-            draw_heart(hx, hy, 10.0, Color::from_hex(0xe94560));
+            if i < self.hearts {
+                draw_heart(hx, hy, 10.0, Color::from_hex(0xe94560));
+            } else {
+                draw_heart_outline(hx, hy, 10.0, Color::from_hex(0x663333));
+            }
         }
 
         draw_text("Arrow keys / WASD to move, Space to jump  |  Q to poop  |  R to reset", 12.0, screen_height() - 12.0, 16.0, Color::from_hex(0x666666));
@@ -1001,6 +1005,20 @@ fn draw_heart(cx: f32, cy: f32, size: f32, color: Color) {
         vec2(cx, cy + size * 0.9),
         color,
     );
+}
+
+/// Draw a heart outline (empty heart) at the given position.
+fn draw_heart_outline(cx: f32, cy: f32, size: f32, color: Color) {
+    let r = size * 0.5;
+    let offset = r * 0.3;
+    draw_circle_lines(cx - offset, cy, r, 1.5, color);
+    draw_circle_lines(cx + offset, cy, r, 1.5, color);
+    // Triangle outline using lines
+    let tip = vec2(cx, cy + size * 0.9);
+    let left = vec2(cx - offset * 1.8, cy + offset * 0.5);
+    let right = vec2(cx + offset * 1.8, cy + offset * 0.5);
+    draw_line(left.x, left.y, tip.x, tip.y, 1.5, color);
+    draw_line(right.x, right.y, tip.x, tip.y, 1.5, color);
 }
 
 /// Draw a piece of food at the given position.
