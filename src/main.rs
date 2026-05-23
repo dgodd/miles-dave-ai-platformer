@@ -951,44 +951,71 @@ pub fn draw_golden_tennis_ball(cx: f32, cy: f32, radius: f32) {
 
 /// Draw a piece of food at the given position.
 fn draw_food_sprite(x: f32, y: f32, kind: &FoodType) {
-    println!("draw_food_sprite: x={} y={} kind={:?}", x, y, kind);
+    let s = 1.3;
     match kind {
         FoodType::Bacon => {
-            // Pink/red wavy strip
-            draw_rectangle(x - 5.0, y - 2.0, 10.0, 4.0, Color::from_hex(0xd4735c));
-            draw_rectangle(x - 4.0, y - 3.0, 8.0, 6.0, Color::from_hex(0xe88a75));
-            draw_rectangle(x - 6.0, y - 1.0, 12.0, 2.0, Color::from_hex(0xc06050));
+            // Wavy pink/red bacon strip with white fat streaks
+            draw_rectangle(x - 8.0 * s, y - 3.0 * s, 16.0 * s, 7.0 * s, Color::from_hex(0xb84530));
+            draw_rectangle(x - 7.0 * s, y - 4.0 * s, 14.0 * s, 8.0 * s, Color::from_hex(0xd06050));
+            draw_rectangle(x - 6.0 * s, y - 2.0 * s, 12.0 * s, 4.0 * s, Color::from_hex(0xe88070));
+            // Fat streaks
+            draw_rectangle(x - 5.0 * s, y - 3.0 * s, 3.0 * s, 6.0 * s, Color::from_hex(0xf0b0a0));
+            draw_rectangle(x + 1.0 * s, y - 3.0 * s, 3.0 * s, 6.0 * s, Color::from_hex(0xf0b0a0));
         }
         FoodType::Chicken => {
-            // Yellow drumstick shape
-            draw_circle(x + 2.0, y, 5.0, Color::from_hex(0xe8b84a));
-            draw_circle(x + 2.0, y, 4.0, Color::from_hex(0xf0c860));
-            draw_rectangle(x - 3.0, y - 1.5, 3.0, 3.0, Color::from_hex(0xd4a030));
+            // Drumstick with bone
+            let cx = x + 1.0 * s;
+            draw_circle(cx, y, 7.0 * s, Color::from_hex(0xd4a030));
+            draw_circle(cx, y, 5.5 * s, Color::from_hex(0xe8c050));
+            draw_circle(cx - 1.0 * s, y - 1.0 * s, 3.0 * s, Color::from_hex(0xf0d860));
+            // Bone
+            draw_rectangle(x - 6.0 * s, y - 1.5 * s, 5.0 * s, 3.0 * s, Color::from_hex(0xf0f0e0));
+            draw_rectangle(x - 7.0 * s, y - 0.5 * s, 2.0 * s, 1.0 * s, Color::from_hex(0xf0f0e0));
+            // Highlight
+            draw_circle(cx + 2.0 * s, y - 2.0 * s, 2.0 * s, Color::from_rgba(255, 255, 200, 80));
         }
         FoodType::Burger => {
-            // Brown bun with fillings
-            draw_circle(x, y - 1.0, 6.0, Color::from_hex(0xc07830));
-            draw_rectangle(x - 5.0, y - 1.0, 10.0, 4.0, Color::from_hex(0x6a994e));
-            draw_rectangle(x - 4.0, y + 1.0, 8.0, 2.0, Color::from_hex(0xe8c040));
-            draw_circle(x, y + 3.0, 5.0, Color::from_hex(0xb06828));
+            // Top bun
+            draw_circle(x, y - 2.0 * s, 8.0 * s, Color::from_hex(0xc07830));
+            draw_circle(x, y - 2.0 * s, 7.0 * s, Color::from_hex(0xd48840));
+            draw_circle(x, y - 3.0 * s, 4.0 * s, Color::from_hex(0xe8a050));
+            // Lettuce
+            draw_rectangle(x - 7.0 * s, y - 1.0 * s, 14.0 * s, 3.0 * s, Color::from_hex(0x6a994e));
+            // Cheese
+            draw_rectangle(x - 6.0 * s, y + 1.0 * s, 12.0 * s, 2.0 * s, Color::from_hex(0xe8c040));
+            // Patty
+            draw_circle(x, y + 4.0 * s, 6.0 * s, Color::from_hex(0x6b3a20));
+            draw_circle(x, y + 4.0 * s, 5.0 * s, Color::from_hex(0x7a4828));
+            // Bottom bun
+            draw_rectangle(x - 5.0 * s, y + 6.0 * s, 10.0 * s, 4.0 * s, Color::from_hex(0xb06828));
+            draw_rectangle(x - 4.0 * s, y + 7.0 * s, 8.0 * s, 2.0 * s, Color::from_hex(0xc07830));
         }
         FoodType::Pizza => {
-            // Orange triangle slice
+            // Crust triangle
             draw_triangle(
-                vec2(x - 6.0, y + 4.0),
-                vec2(x + 6.0, y + 4.0),
-                vec2(x, y - 5.0),
-                Color::from_hex(0xe8a030),
+                vec2(x - 8.0 * s, y + 6.0 * s),
+                vec2(x + 8.0 * s, y + 6.0 * s),
+                vec2(x, y - 7.0 * s),
+                Color::from_hex(0xd49030),
             );
+            // Cheese layer
             draw_triangle(
-                vec2(x - 4.0, y + 3.0),
-                vec2(x + 4.0, y + 3.0),
-                vec2(x, y - 3.0),
-                Color::from_hex(0xf0b840),
+                vec2(x - 6.0 * s, y + 5.0 * s),
+                vec2(x + 6.0 * s, y + 5.0 * s),
+                vec2(x, y - 5.0 * s),
+                Color::from_hex(0xe8b840),
             );
-            draw_circle(x, y - 2.0, 2.0, Color::from_hex(0xc04030));
-            draw_circle(x - 2.0, y + 1.0, 1.5, Color::from_hex(0xc04030));
-            draw_circle(x + 2.0, y + 1.0, 1.5, Color::from_hex(0xc04030));
+            // Crust edge
+            draw_line(x - 8.0 * s, y + 6.0 * s, x + 8.0 * s, y + 6.0 * s, 3.0 * s, Color::from_hex(0xc07820));
+            // Pepperoni
+            draw_circle(x, y - 2.0 * s, 3.0 * s, Color::from_hex(0xc04030));
+            draw_circle(x - 3.0 * s, y + 2.0 * s, 2.5 * s, Color::from_hex(0xc04030));
+            draw_circle(x + 3.0 * s, y + 2.0 * s, 2.5 * s, Color::from_hex(0xc04030));
+            draw_circle(x - 4.0 * s, y - 1.0 * s, 2.0 * s, Color::from_hex(0xc04030));
+            draw_circle(x + 4.0 * s, y - 1.0 * s, 2.0 * s, Color::from_hex(0xc04030));
+            // Grease spots
+            draw_circle(x - 1.0 * s, y - 3.0 * s, 1.0 * s, Color::from_rgba(255, 200, 50, 80));
+            draw_circle(x + 2.0 * s, y + 3.0 * s, 1.0 * s, Color::from_rgba(255, 200, 50, 80));
         }
     }
 }
