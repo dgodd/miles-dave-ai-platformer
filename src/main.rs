@@ -351,6 +351,7 @@ struct Game {
     particles: Vec<Particle>,
     death_timer: f32,
     death_message: String,
+    played_death_sound: bool,
     dev_mode: bool,
     hearts: u32,
     invincible_timer: f32,
@@ -384,6 +385,7 @@ impl Game {
             particles: vec![],
             death_timer: 0.0,
             death_message: String::new(),
+            played_death_sound: false,
             dev_mode: false,
             hearts: 3,
             invincible_timer: 0.0,
@@ -459,6 +461,7 @@ impl Game {
     fn die(&mut self) {
         self.player.dead = true;
         self.death_timer = 0.3;
+        self.played_death_sound = false;
         let px = self.player.pos.x + self.player.size.x / 2.0;
         let py = self.player.pos.y + self.player.size.y / 2.0;
         for _ in 0..30 {
@@ -1530,6 +1533,7 @@ fn window_conf() -> Conf {
 #[macroquad::main(window_conf)]
 async fn main() {
     let poop_sound = audio::load_sound("assets/poop.wav").await.ok();
+    let death_sound = audio::load_sound("assets/death.wav").await.ok();
 
     let mut game = Game::new();
 
@@ -1539,6 +1543,12 @@ async fn main() {
         // ── Update particles and death timer (always) ───────────────────
         if game.death_timer > 0.0 {
             game.death_timer -= dt;
+        }
+        if game.player.dead && !game.played_death_sound {
+            game.played_death_sound = true;
+            if let Some(s) = &death_sound {
+                audio::play_sound_once(s);
+            }
         }
         if game.complete_timer > 0.0 {
             game.complete_timer -= dt;
