@@ -150,6 +150,33 @@ impl Poop {
     }
 }
 
+/// Types of food the dog can collect.
+#[derive(Debug, Clone, PartialEq)]
+enum FoodType {
+    Bacon,
+    Chicken,
+    Burger,
+    Pizza,
+}
+
+/// A piece of food scattered around the level.
+#[derive(Debug, Clone, PartialEq)]
+struct Food {
+    pos: Vec2,
+    kind: FoodType,
+    collected: bool,
+}
+
+impl Food {
+    fn new(x: f32, y: f32, kind: FoodType) -> Self {
+        Self { pos: vec2(x, y), kind, collected: false }
+    }
+
+    fn rect(&self) -> Rect {
+        Rect::new(self.pos.x - 6.0, self.pos.y - 6.0, 12.0, 12.0)
+    }
+}
+
 /// A single death particle.
 #[derive(Debug, Clone, PartialEq)]
 struct Particle {
@@ -219,7 +246,7 @@ impl Baby {
 }
 
 /// Holds all the level data returned by build_level / level_1 / level_2.
-type LevelData = (Vec<Platform>, Vec<Spike>, Vec<Baby>, Vec<Lava>, Option<GoalBall>);
+type LevelData = (Vec<Platform>, Vec<Spike>, Vec<Baby>, Vec<Lava>, Vec<Food>, Option<GoalBall>);
 
 /// The goal tennis ball the dog must fetch to complete the level.
 #[derive(Debug, Clone, PartialEq)]
@@ -324,6 +351,9 @@ struct Game {
     goal_ball: Option<GoalBall>,
     lava_pits: Vec<Lava>,
     level: u32,
+    foods: Vec<Food>,
+    food_collected: u32,
+    food_total: u32,
     level_complete: bool,
     complete_timer: f32,
 }
@@ -335,7 +365,7 @@ impl Game {
         // Build level 1 by default
         let start_x = 80.0;
         let start_y = floor_y - PLAYER_HEIGHT;
-        let (platforms, spikes, babies, lava_pits, goal_ball) = Self::build_level(1, floor_y);
+        let (platforms, spikes, babies, lava_pits, _foods, goal_ball) = Self::build_level(1, floor_y);
 
         Self {
             player: Player::new(start_x, start_y),
@@ -348,6 +378,9 @@ impl Game {
             death_timer: 0.0,
             state: GameState::Title,
             goal_ball,
+            foods: vec![],
+            food_collected: 0,
+            food_total: 0,
             level: 1,
             level_complete: false,
             complete_timer: 0.0,
@@ -357,6 +390,7 @@ impl Game {
     fn build_level(level: u32, floor_y: f32) -> LevelData {
         let data = match level {
             1 => include_str!("../levels/level1.txt"),
+            3 => include_str!("../levels/level3.txt"),
             _ => include_str!("../levels/level2.txt"),
         };
         parse_level(data, floor_y)
@@ -373,14 +407,20 @@ impl Game {
     fn next_level(&mut self) {
         let next = self.level + 1;
         let floor_y = screen_height() - 40.0;
-        let (platforms, spikes, babies, lava_pits, goal_ball) = Self::build_level(next, floor_y);
+        let (platforms, spikes, babies, lava_pits, foods, goal_ball) = Self::build_level(next, floor_y);
         self.player = Player::new(80.0, floor_y - PLAYER_HEIGHT);
         self.platforms = platforms;
         self.spikes = spikes;
         self.babies = babies;
         self.lava_pits = lava_pits;
+        self.foods = foods;
+        self.food_collected = 0;
+        self.food_total = self.foods.len() as u32;
         self.goal_ball = goal_ball;
         self.level = next;
+        self.foods.clear();
+        self.food_collected = 0;
+        self.food_total = 0;
         self.poops.clear();
         self.particles.clear();
         self.level_complete = false;
@@ -391,14 +431,20 @@ impl Game {
 
     fn start_level(&mut self, level: u32) {
         let floor_y = screen_height() - 40.0;
-        let (platforms, spikes, babies, lava_pits, goal_ball) = Self::build_level(level, floor_y);
+        let (platforms, spikes, babies, lava_pits, foods, goal_ball) = Self::build_level(level, floor_y);
         self.player = Player::new(80.0, floor_y - PLAYER_HEIGHT);
         self.platforms = platforms;
         self.spikes = spikes;
         self.babies = babies;
         self.lava_pits = lava_pits;
+        self.foods = foods;
+        self.food_collected = 0;
+        self.food_total = self.foods.len() as u32;
         self.goal_ball = goal_ball;
         self.level = level;
+        self.foods.clear();
+        self.food_collected = 0;
+        self.food_total = 0;
         self.poops.clear();
         self.particles.clear();
         self.level_complete = false;
@@ -525,6 +571,14 @@ impl Game {
             }
         }
 
+        // ── Food collisions ────────────────────────────────────────────
+        for food in &mut self.foods {
+            if !food.collected && self.player.rect().intersect(food.rect()).is_some() {
+                food.collected = true;
+                self.food_collected += 1;
+            }
+        }
+
         // ── Baby collisions ─────────────────────────────────────────────
         if !self.player.dead {
             for baby in &self.babies {
@@ -611,6 +665,15 @@ impl Game {
             ));
         }
 
+        // ── Food ───────────────────────────────────────────────────────
+        for food in &self.foods {
+            if !food.collected {
+                let sx = food.pos.x - cam.x;
+                let sy = food.pos.y - cam.y;
+                draw_food_sprite(sx, sy, &food.kind);
+            }
+        }
+
         // ── Poops ──────────────────────────────────────────────────────
         for poop in &self.poops {
             if !poop.eaten {
@@ -642,7 +705,12 @@ impl Game {
             Some(b) if !b.collected => format!("  Ball: ({:.0}, {:.0})", b.pos.x, b.pos.y),
             _ => String::new(),
         };
-        let hud_text = format!("x: {:.0}  y: {:.0}  grounded: {}{}", self.player.pos.x, self.player.pos.y, self.player.grounded, ball_info);
+        let food_info = if self.food_total > 0 {
+            format!("  Food: {}/{}", self.food_collected, self.food_total)
+        } else {
+            String::new()
+        };
+        let hud_text = format!("x: {:.0}  y: {:.0}  grounded: {}{}{}", self.player.pos.x, self.player.pos.y, self.player.grounded, ball_info, food_info);
         draw_text(&hud_text, 12.0, 28.0, 20.0, Color::from_hex(0xaaaaaa));
         draw_text("Arrow keys / WASD to move, Space to jump  |  Q to poop  |  R to reset", 12.0, screen_height() - 12.0, 16.0, Color::from_hex(0x666666));
 
@@ -821,7 +889,7 @@ impl Game {
         let start_x = (cw - total_w) / 2.0;
         let start_y = ch * 0.35;
 
-        for i in 0..2 {
+        for i in 0..3 {
             let col = i % cols;
             let row = i / cols;
             let bx = start_x + col as f32 * (bw + spacing);
@@ -834,7 +902,6 @@ impl Game {
             let ls = measure_text(&label, None, 28, 1.0);
             draw_text(&label, bx + (bw - ls.width) / 2.0, by + bh / 2.0 + 10.0, 28.0, Color::from_hex(0xcccccc));
         }
-
         let back_bw = 180.0;
         let back_bh = 44.0;
         let back_bx = (cw - back_bw) / 2.0;
@@ -866,6 +933,50 @@ fn draw_tennis_ball(cx: f32, cy: f32, radius: f32, main_color: Color, highlight_
 /// Draw a golden tennis ball (original title screen variant).
 fn draw_golden_tennis_ball(cx: f32, cy: f32, radius: f32) {
     draw_tennis_ball(cx, cy, radius, Color::from_hex(0xd4c73c), Color::from_hex(0xe8da4a));
+}
+
+/// Draw a piece of food at the given position.
+fn draw_food_sprite(x: f32, y: f32, kind: &FoodType) {
+    match kind {
+        FoodType::Bacon => {
+            // Pink/red wavy strip
+            draw_rectangle(x - 5.0, y - 2.0, 10.0, 4.0, Color::from_hex(0xd4735c));
+            draw_rectangle(x - 4.0, y - 3.0, 8.0, 6.0, Color::from_hex(0xe88a75));
+            draw_rectangle(x - 6.0, y - 1.0, 12.0, 2.0, Color::from_hex(0xc06050));
+        }
+        FoodType::Chicken => {
+            // Yellow drumstick shape
+            draw_circle(x + 2.0, y, 5.0, Color::from_hex(0xe8b84a));
+            draw_circle(x + 2.0, y, 4.0, Color::from_hex(0xf0c860));
+            draw_rectangle(x - 3.0, y - 1.5, 3.0, 3.0, Color::from_hex(0xd4a030));
+        }
+        FoodType::Burger => {
+            // Brown bun with fillings
+            draw_circle(x, y - 1.0, 6.0, Color::from_hex(0xc07830));
+            draw_rectangle(x - 5.0, y - 1.0, 10.0, 4.0, Color::from_hex(0x6a994e));
+            draw_rectangle(x - 4.0, y + 1.0, 8.0, 2.0, Color::from_hex(0xe8c040));
+            draw_circle(x, y + 3.0, 5.0, Color::from_hex(0xb06828));
+        }
+        FoodType::Pizza => {
+            // Orange triangle slice
+            draw_triangle(
+                vec2(x - 6.0, y + 4.0),
+                vec2(x + 6.0, y + 4.0),
+                vec2(x, y - 5.0),
+                Color::from_hex(0xe8a030),
+            );
+            draw_triangle(
+                vec2(x - 4.0, y + 3.0),
+                vec2(x + 4.0, y + 3.0),
+                vec2(x, y - 3.0),
+                Color::from_hex(0xf0b840),
+            );
+            // Pepperoni
+            draw_circle(x, y - 2.0, 2.0, Color::from_hex(0xc04030));
+            draw_circle(x - 2.0, y + 1.0, 1.5, Color::from_hex(0xc04030));
+            draw_circle(x + 2.0, y + 1.0, 1.5, Color::from_hex(0xc04030));
+        }
+    }
 }
 
 /// Check if the mouse is currently over the given rectangle.
@@ -1101,6 +1212,7 @@ fn parse_level(data: &str, floor_y: f32) -> LevelData {
     let mut lava_pits: Vec<Lava> = vec![];
     let mut goal_ball: Option<GoalBall> = None;
     let mut player_start: Option<(f32, f32)> = None;
+    let mut foods: Vec<Food> = vec![];
 
     for line in data.lines() {
         let line = line.trim();
@@ -1145,6 +1257,17 @@ fn parse_level(data: &str, floor_y: f32) -> LevelData {
                 let max_x: f32 = parts[4].parse().unwrap_or(200.0);
                 babies.push(Baby::new(x, fy, min_x, max_x));
             }
+            "F" if parts.len() >= 4 => {
+                let x: f32 = parts[1].parse().unwrap_or(0.0);
+                let y: f32 = parts[2].parse().unwrap_or(0.0);
+                let kind = match parts[3] {
+                    "chicken" => FoodType::Chicken,
+                    "burger" => FoodType::Burger,
+                    "pizza" => FoodType::Pizza,
+                    _ => FoodType::Bacon,
+                };
+                foods.push(Food::new(x, y, kind));
+            }
             "G" if parts.len() >= 4 => {
                 let x: f32 = parts[1].parse().unwrap_or(0.0);
                 let y: f32 = parts[2].parse().unwrap_or(floor_y - 50.0);
@@ -1167,7 +1290,7 @@ fn parse_level(data: &str, floor_y: f32) -> LevelData {
     // The calling code in Game::new() uses hardcoded start_x/start_y
     // For now, the level file P line is advisory; Game::new() uses its own start
 
-    (platforms, spikes, babies, lava_pits, goal_ball)
+    (platforms, spikes, babies, lava_pits, foods, goal_ball)
 }
 
 // ── Platform helpers ─────────────────────────────────────────────────────────
@@ -1365,7 +1488,7 @@ async fn main() {
                     let start_x = (cw - total_w) / 2.0;
                     let start_y = ch * 0.35;
 
-                    for i in 0..2 {
+                    for i in 0..3 {
                         let col = i % cols;
                         let row = i / cols;
                         let bx = start_x + col as f32 * (bw + spacing);
@@ -1537,12 +1660,12 @@ async fn main() {
                         if ball.pos.x + 8.0 > max_x { ball.pos.x = max_x - 8.0; ball.vel.x = -80.0; }
                     }
 
-                    // Player collision -> fetch!
-                    if game.player.rect().intersect(ball.rect()).is_some() {
+                    // Player collision -> fetch! (only if all food is collected when food is present)
+                    let can_fetch = game.food_total == 0 || game.food_collected >= game.food_total;
+                    if game.player.rect().intersect(ball.rect()).is_some() && can_fetch {
                         ball.collected = true;
                         game.level_complete = true;
                         game.complete_timer = 0.5;
-                        // Spawn green burst particles from the ball
                         for _ in 0..35 {
                             let angle = (mq_rand::rand() as f32 / u32::MAX as f32) * std::f32::consts::TAU;
                             let speed = (mq_rand::rand() as f32 / u32::MAX as f32) * 300.0 + 100.0;
