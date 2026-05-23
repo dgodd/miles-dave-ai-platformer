@@ -4,7 +4,7 @@ use macroquad::rand as mq_rand;
 // ── Constants ────────────────────────────────────────────────────────────────
 
 const GRAVITY: f32 = 980.0;
-const JUMP_VELOCITY: f32 = -520.0;
+const JUMP_VELOCITY: f32 = -590.0;
 const MOVE_SPEED: f32 = 280.0;
 const PLAYER_WIDTH: f32 = 28.0;
 const PLAYER_HEIGHT: f32 = 36.0;
@@ -261,7 +261,7 @@ impl GoalBall {
     fn new(x: f32, y: f32, color: Color) -> Self {
         Self {
             pos: vec2(x, y),
-            vel: vec2(80.0, 0.0),
+            vel: vec2(80.0, 1.0),
             color,
             collected: false,
         }
@@ -1652,7 +1652,7 @@ async fn main() {
                             for poop in &mut game.poops {
                                 if poop.eaten { continue; }
                                 let dist = (baby_cx - poop.pos.x).abs();
-                                if dist < 120.0
+                                if dist < 200.0
                                     && !mq_rand::rand().is_multiple_of(4)
                                 {
                                     // 75%: flee away from the poop
