@@ -137,12 +137,13 @@ impl Spike {
 #[derive(Debug, Clone, PartialEq)]
 struct Poop {
     pos: Vec2,
+    vel_y: f32,
     eaten: bool,
 }
 
 impl Poop {
     fn new(x: f32, y: f32) -> Self {
-        Self { pos: vec2(x, y), eaten: false }
+        Self { pos: vec2(x, y), vel_y: 100.0, eaten: false }
     }
 
     fn rect(&self) -> Rect {
@@ -1653,7 +1654,7 @@ async fn main() {
                                 if poop.eaten { continue; }
                                 let same_plat = (baby.floor_y - poop.pos.y).abs() < 30.0;
                                 let dist = (baby_cx - poop.pos.x).abs();
-                                if same_plat && dist < 200.0
+                                if same_plat && dist < 100.0
                                     && !mq_rand::rand().is_multiple_of(4)
                                 {
                                     // 75%: flee away from the poop
@@ -1668,6 +1669,34 @@ async fn main() {
                                 // Eat the poop if touching it
                                 if baby.rect().intersect(poop.rect()).is_some() {
                                     poop.eaten = true;
+                                }
+                            }
+                        }
+                    }
+
+                    // ── Poop physics ────────────────────────────────────────
+                    for poop in &mut game.poops {
+                        if !poop.eaten && poop.vel_y != 0.0 {
+                            poop.vel_y += GRAVITY * dt;
+                            poop.pos.y += poop.vel_y * dt;
+                            // Check landing on a platform
+                            let mut landed = false;
+                            for plat in &game.platforms {
+                                let poop_bottom = poop.pos.y + 5.0;
+                                let overlaps_x = poop.pos.x > plat.pos.x && poop.pos.x < plat.pos.x + plat.size.x;
+                                if overlaps_x && poop_bottom >= plat.pos.y && poop_bottom <= plat.pos.y + 15.0 && poop.vel_y > 0.0 {
+                                    poop.pos.y = plat.pos.y - 5.0;
+                                    poop.vel_y = 0.0;
+                                    landed = true;
+                                    break;
+                                }
+                            }
+                            // Fallback: stop at floor level
+                            if !landed {
+                                let floor_y = screen_height() - 40.0;
+                                if poop.pos.y + 5.0 >= floor_y {
+                                    poop.pos.y = floor_y - 5.0;
+                                    poop.vel_y = 0.0;
                                 }
                             }
                         }
