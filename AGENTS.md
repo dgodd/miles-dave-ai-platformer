@@ -82,6 +82,15 @@ The entire game is a single file. The major sections are:
 8. Call draw in `Game::draw()`
 9. Add collision checks in `Game::update_player()`
 
+## Releases
+
+- Before creating a release tag, update `Cargo.toml` version (e.g. `version = "2.0.0"`).
+- Commit the version bump, then create and push a tag:
+  ```sh
+  git tag v2.0.0 && git push origin v2.0.0
+  ```
+- The GitHub Actions workflow builds macOS and Windows binaries and creates a Release.
+
 ## Git
 
 - Commit after every task. Descriptive commit messages explaining what changed and why.
