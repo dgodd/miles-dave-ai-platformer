@@ -788,7 +788,7 @@ impl Game {
             draw_text(&level_str, screen_width() / 2.0 - title_size.width / 2.0, screen_height() / 2.0 - 20.0,
                       48.0, ball_color);
 
-            let subtitle = "The dog fetched the ball!  Press Space to play again";
+            let subtitle = "The dog fetched the ball!  Press Space for next level";
             let sub_size = measure_text(subtitle, None, 22, 1.0);
             draw_text(subtitle, screen_width() / 2.0 - sub_size.width / 2.0, screen_height() / 2.0 + 30.0,
                       22.0, Color::from_hex(0xaaaaaa));
@@ -1771,8 +1771,7 @@ async fn main() {
                 }
 
                 if game.level_complete && game.complete_timer <= 0.0 && is_key_pressed(KeyCode::Space) {
-                    let lvl = game.level;
-                    game.start_level(lvl);
+                    game.next_level();
                 }
 
                 if is_key_pressed(KeyCode::R) {
