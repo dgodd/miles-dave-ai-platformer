@@ -1,5 +1,6 @@
 use macroquad::prelude::*;
 use macroquad::rand as mq_rand;
+use macroquad::audio;
 
 // ── Constants ────────────────────────────────────────────────────────────────
 
@@ -1528,6 +1529,7 @@ fn window_conf() -> Conf {
 
 #[macroquad::main(window_conf)]
 async fn main() {
+    let poop_sound = audio::load_sound("assets/poop.wav").await.ok();
 
     let mut game = Game::new();
 
@@ -1745,6 +1747,9 @@ async fn main() {
                         let px = game.player.pos.x + game.player.size.x / 2.0 - 8.0 * flip;
                         let py = game.player.pos.y + game.player.size.y - 30.0;
                         game.poops.push(Poop::new(px, py));
+                        if let Some(s) = &poop_sound {
+                            audio::play_sound_once(s);
+                        }
                     }
 
                     // ── Poop physics ────────────────────────────────────────
