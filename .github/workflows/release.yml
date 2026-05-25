@@ -45,7 +45,7 @@ jobs:
         uses: actions/upload-artifact@v8
         with:
           name: platformer-${{ matrix.suffix }}
-          path: target/${{ matrix.target }}/release/platformer${{ matrix.name == 'Windows' && '.exe' || '' }}
+          path: target/${{ matrix.target }}/release/platformer${{ matrix.name == 'Windows' ? '.exe' : matrix.name == 'WASM' ? '.wasm' : '' }}
 
   release:
     name: Create GitHub Release
