@@ -23,6 +23,10 @@ jobs:
             name: Windows
             suffix: windows.exe
             target: x86_64-pc-windows-gnu
+          - os: ubuntu-latest
+            name: WASM
+            suffix: wasm
+            target: wasm32-unknown-unknown
 
     steps:
       - uses: actions/checkout@v4
